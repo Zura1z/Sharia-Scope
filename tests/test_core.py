@@ -298,10 +298,10 @@ def test_sufficient_escalates_on_implausible_values():
     # into interest-bearing debt — which exceeds total liabilities (6.4M). Must escalate.
     bad = RawFinancials(total_assets=47553165, total_revenue=18225608, interest_bearing_debt=16041308,
                         illiquid_assets=35969816, total_liabilities=6433341)
-    assert ai_extract._sufficient(bad) is False
+    assert ai_extract._extraction_is_plausible(bad) is False
     good = RawFinancials(total_assets=1000, total_revenue=200, interest_bearing_debt=100,
                          illiquid_assets=400, total_liabilities=300)
-    assert ai_extract._sufficient(good) is True
+    assert ai_extract._extraction_is_plausible(good) is True
 
 
 def test_bedrock_ladder_orders_cheap_to_expensive():
@@ -315,7 +315,7 @@ def test_bedrock_ladder_orders_cheap_to_expensive():
         "anthropic.titan-text",  # ignored (not a Claude tier)
     ]
     ladder = ai_extract.bedrock_ladder(avail)
-    assert [ai_extract._tier_of(m) for m in ladder] == ["haiku", "sonnet", "opus"]
+    assert [ai_extract._model_tier(m) for m in ladder] == ["haiku", "sonnet", "opus"]
     assert ladder[0].startswith("eu.")  # region inference profile preferred for EU
 
 
@@ -426,7 +426,7 @@ def test_classify_debt_returns_none_without_liability_lines():
 def test_section_total_sums_equity_lines():
     import ai_extract
 
-    assert ai_extract._section_total(CRESCENT_LINES, ("equity",)) == 13027497
+    assert ai_extract._sum_section(CRESCENT_LINES, ("equity",)) == 13027497
 
 
 def test_period_helpers():
@@ -460,10 +460,10 @@ def test_resolve_ticker_prefers_index_match_over_document_symbol():
 def test_foots_detects_non_footing_section():
     import ai_extract
 
-    assert ai_extract._foots(100.0, 100.0) is True
-    assert ai_extract._foots(100.0, 100.4) is True   # within 1%
-    assert ai_extract._foots(106.0, 100.0) is False  # 6% off -> a line was mis-transcribed
-    assert ai_extract._foots(None, 100.0) is None     # can't check
+    assert ai_extract._section_matches_subtotal(100.0, 100.0) is True
+    assert ai_extract._section_matches_subtotal(100.0, 100.4) is True   # within 1%
+    assert ai_extract._section_matches_subtotal(106.0, 100.0) is False  # 6% off -> a line was mis-transcribed
+    assert ai_extract._section_matches_subtotal(None, 100.0) is None     # can't check
 
 
 def test_needs_stronger_escalates_haiku_only_on_material_debt():
@@ -472,7 +472,7 @@ def test_needs_stronger_escalates_haiku_only_on_material_debt():
 
     levered = RawFinancials(total_assets=1000.0, interest_bearing_debt=250.0)  # 25% of assets
     debt_light = RawFinancials(total_assets=1000.0, interest_bearing_debt=20.0)  # 2% of assets
-    assert ai_extract._needs_stronger(levered, "eu.anthropic.claude-haiku-4-5-20251001-v1:0") is True
-    assert ai_extract._needs_stronger(debt_light, "eu.anthropic.claude-haiku-4-5-20251001-v1:0") is False
+    assert ai_extract._should_escalate_for_debt(levered, "eu.anthropic.claude-haiku-4-5-20251001-v1:0") is True
+    assert ai_extract._should_escalate_for_debt(debt_light, "eu.anthropic.claude-haiku-4-5-20251001-v1:0") is False
     # A stronger tier is already the final word — never "needs stronger".
-    assert ai_extract._needs_stronger(levered, "eu.anthropic.claude-sonnet-4-6") is False
+    assert ai_extract._should_escalate_for_debt(levered, "eu.anthropic.claude-sonnet-4-6") is False

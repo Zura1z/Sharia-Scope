@@ -169,7 +169,7 @@ def classify_debt_from_lines(lines: list[dict]) -> tuple[float | None, list[dict
         return None, []
     included: list[dict] = []
     for ln in liabilities:
-        amount = _num(ln.get("amount"))
+        amount = _as_number(ln.get("amount"))
         if amount is None or amount == 0:
             continue
         if _classify_debt_line(ln.get("label") or ""):
@@ -178,14 +178,14 @@ def classify_debt_from_lines(lines: list[dict]) -> tuple[float | None, list[dict
     return total, included
 
 
-def _section_total(lines: list[dict], sections: tuple[str, ...]) -> float | None:
+def _sum_section(lines: list[dict], sections: tuple[str, ...]) -> float | None:
     """Sum the amounts of all lines in the given balance-sheet sections, or None."""
-    vals = [_num(ln.get("amount")) for ln in (lines or []) if (ln.get("section") or "") in sections]
+    vals = [_as_number(ln.get("amount")) for ln in (lines or []) if (ln.get("section") or "") in sections]
     vals = [v for v in vals if v is not None]
     return sum(vals) if vals else None
 
 
-def _foots(line_sum: float | None, reported: float | None, tol: float = 0.01) -> bool | None:
+def _section_matches_subtotal(line_sum: float | None, reported: float | None, tol: float = 0.01) -> bool | None:
     """True if a section's transcribed lines sum to its printed subtotal (within
     1%). None when either value is missing (can't check)."""
     if line_sum is None or reported is None or not reported:
@@ -278,7 +278,7 @@ def list_bedrock_models(access_key=None, secret_key=None, region=None, session_t
     return sorted(ids)
 
 
-def _tier_of(model_id: str) -> str:
+def _model_tier(model_id: str) -> str:
     m = (model_id or "").lower()
     for t in ("haiku", "sonnet", "opus"):
         if t in m:
@@ -290,7 +290,7 @@ def bedrock_ladder(available: list[str]) -> list[str]:
     """Cheapest → most-capable ladder picked from available Bedrock IDs."""
     by_tier: dict[str, list[str]] = {"haiku": [], "sonnet": [], "opus": []}
     for mid in available:
-        t = _tier_of(mid)
+        t = _model_tier(mid)
         if t in by_tier:
             by_tier[t].append(mid)
     ladder = []
@@ -573,7 +573,7 @@ def _prepared_block(mode: str, payload: object, filename: str) -> dict:
     return _content_block(payload, filename)
 
 
-def _sufficient(raw: RawFinancials) -> bool:
+def _extraction_is_plausible(raw: RawFinancials) -> bool:
     """Did a cheaper model recover enough — and *plausible* — figures to stop?
 
     Presence alone isn't enough: a value that's present but obviously wrong
@@ -594,9 +594,11 @@ def _sufficient(raw: RawFinancials) -> bool:
     return True
 
 
-def _extract_once(client, model: str, content_block: dict, provider: str) -> tuple[RawFinancials, dict]:
+def _request_extraction(client, model: str, content_block: dict) -> tuple[dict, object]:
+    """Run one forced-tool extraction call and return ``(payload, token_usage)``."""
     import anthropic
 
+    user_message = [content_block, {"type": "text", "text": "Extract the Shariah-screening line items from this document."}]
     try:
         response = client.messages.create(
             model=model,
@@ -604,7 +606,7 @@ def _extract_once(client, model: str, content_block: dict, provider: str) -> tup
             system=SYSTEM_PROMPT,
             tools=[EXTRACTION_TOOL],
             tool_choice={"type": "tool", "name": "report_financials"},
-            messages=[{"role": "user", "content": [content_block, {"type": "text", "text": "Extract the Shariah-screening line items from this document."}]}],
+            messages=[{"role": "user", "content": user_message}],
         )
     except anthropic.AuthenticationError as exc:
         raise ExtractionError("Claude rejected the API key (authentication error).") from exc
@@ -617,75 +619,129 @@ def _extract_once(client, model: str, content_block: dict, provider: str) -> tup
     except Exception as exc:
         raise ExtractionError(f"Extraction failed ({type(exc).__name__}): {exc}") from exc
 
-    payload = next((b.input for b in response.content if b.type == "tool_use"), None)
+    payload = next((block.input for block in response.content if block.type == "tool_use"), None)
     if payload is None:
         raise ExtractionError("Claude did not return structured financials. Try again or enter values manually.")
     if isinstance(payload, str):
         payload = json.loads(payload)
+    return payload, getattr(response, "usage", None)
 
-    # Debt classification priority, most reliable first:
-    #   1. code-classified from transcribed balance-sheet lines (model only transcribes),
-    #   2. the named debt components summed in code,
-    #   3. the model's own 'interest_bearing_debt' aggregate (conflates deferred tax — last resort).
+
+def _select_interest_bearing_debt(payload: dict) -> tuple[float | None, str, list[dict]]:
+    """Choose the most reliable debt figure and report how it was found.
+
+    Order of preference: code summed from the transcribed balance-sheet lines,
+    then summed from the named debt components, then the model's own aggregate
+    (least reliable — it tends to absorb deferred tax and revaluation surplus).
+    Returns ``(debt, method_used, lines_summed)``.
+    """
     lines = payload.get("balance_sheet_lines") or []
-    line_debt, debt_lines = classify_debt_from_lines(lines)
-    comps = [_num(payload.get(k)) for k in ("long_term_borrowings", "short_term_borrowings", "current_portion_long_term_debt")]
-    comp_debt = sum(c for c in comps if c is not None) if any(c is not None for c in comps) else None
-    if line_debt is not None:
-        debt, debt_method = line_debt, "balance_sheet_lines"
-    elif comp_debt is not None:
-        debt, debt_method = comp_debt, "named_components"
+    debt_from_lines, lines_summed = classify_debt_from_lines(lines)
+    if debt_from_lines is not None:
+        return debt_from_lines, "balance_sheet_lines", lines_summed
+
+    component_fields = ("long_term_borrowings", "short_term_borrowings", "current_portion_long_term_debt")
+    components = [_as_number(payload.get(field)) for field in component_fields]
+    present_components = [value for value in components if value is not None]
+    if present_components:
+        return sum(present_components), "named_components", []
+
+    return _as_number(payload.get("interest_bearing_debt")), "model_aggregate", []
+
+
+def _check_section_footing(payload: dict) -> dict:
+    """Check whether each balance-sheet section's lines add up to its subtotal.
+
+    A section that doesn't foot means a line was mis-transcribed (a value copied
+    from the wrong row), so the debt summed from those lines can't be trusted.
+    """
+    lines = payload.get("balance_sheet_lines") or []
+    reported_equity = _as_number(payload.get("total_equity"))
+    reported_liabilities = _as_number(payload.get("total_liabilities"))
+    liability_lines_sum = _sum_section(lines, ("non_current_liability", "current_liability"))
+
+    liabilities_foot = _section_matches_subtotal(liability_lines_sum, reported_liabilities)
+    equity_foots = _section_matches_subtotal(_sum_section(lines, ("equity",)), reported_equity)
+    assets_foot = _section_matches_subtotal(_sum_section(lines, ("non_current_asset", "current_asset")), _as_number(payload.get("total_assets")))
+
+    section_checks = (liabilities_foot, equity_foots, assets_foot)
+    if all(check is None for check in section_checks):
+        everything_foots = None
     else:
-        debt, debt_method = _num(payload.get("interest_bearing_debt")), "model_aggregate"
+        everything_foots = not any(check is False for check in section_checks)
 
-    # Line-derived equity / liabilities back up the model's own subtotals (and the
-    # reconciliation check), since both are just sums of transcribed lines.
-    reported_equity = _num(payload.get("total_equity"))
-    reported_liab = _num(payload.get("total_liabilities"))
-    equity = reported_equity if reported_equity is not None else _section_total(lines, ("equity",))
-    total_liabilities = reported_liab if reported_liab is not None else _section_total(lines, ("non_current_liability", "current_liability"))
-
-    # Control-total ("does it foot?") check: each section's transcribed lines must
-    # sum to its printed subtotal. A mismatch means a line was mis-transcribed —
-    # e.g. Sonnet read Crescent's current-portion line as 934,928 (actually the
-    # short-term-investments figure), inflating debt by ~570K. Catching this lets
-    # the pipeline escalate or flag the debt figure as low-confidence.
-    liab_lines_sum = _section_total(lines, ("non_current_liability", "current_liability"))
-    foot_liab = _foots(liab_lines_sum, reported_liab)
-    foot_equity = _foots(_section_total(lines, ("equity",)), reported_equity)
-    foot_assets = _foots(_section_total(lines, ("non_current_asset", "current_asset")), _num(payload.get("total_assets")))
-    lines_foot = None if all(f is None for f in (foot_liab, foot_equity, foot_assets)) else not any(f is False for f in (foot_liab, foot_equity, foot_assets))
-
-    raw = RawFinancials(
-        company_name=payload.get("company_name") or "", ticker=payload.get("ticker") or "",
-        business_compliant=bool(payload.get("business_compliant", True)), business_activity=payload.get("business_activity") or "",
-        total_assets=_num(payload.get("total_assets")), interest_bearing_debt=debt,
-        noncompliant_investments=_num(payload.get("noncompliant_investments")), noncompliant_income=_num(payload.get("noncompliant_income")),
-        total_revenue=_num(payload.get("total_revenue")), illiquid_assets=_num(payload.get("illiquid_assets")),
-        total_liabilities=total_liabilities, number_of_shares=_num(payload.get("number_of_shares")),
-        market_price_per_share=_num(payload.get("market_price_per_share")),
-    )
-    usage = getattr(response, "usage", None)
-    in_tok = getattr(usage, "input_tokens", None)
-    out_tok = getattr(usage, "output_tokens", None)
-    meta = {
-        "currency_unit": payload.get("currency_unit") or "", "period": payload.get("period") or "",
-        "reporting_period_months": payload.get("reporting_period_months"),
-        "extraction_notes": payload.get("extraction_notes") or "", "model": model,
-        "evidence": payload.get("evidence") or [], "total_equity": equity,
-        "debt_method": debt_method, "debt_lines": debt_lines,
-        "balance_sheet_lines": lines, "lines_foot": lines_foot, "foot_liabilities": foot_liab,
-        "liab_lines_sum": liab_lines_sum, "reported_total_liabilities": reported_liab,
-        # Debt from balance-sheet lines is high-confidence only when the LIABILITY
-        # section foots to its printed subtotal (that's the section debt is summed from).
-        "debt_low_confidence": bool(debt_method == "balance_sheet_lines" and foot_liab is False),
-        "usage": {"input_tokens": in_tok, "output_tokens": out_tok} if in_tok is not None else None,
-        "cost_usd": estimate_cost(model, in_tok, out_tok),
+    return {
+        "liabilities_foot": liabilities_foot,
+        "everything_foots": everything_foots,
+        "liability_lines_sum": liability_lines_sum,
+        "reported_liabilities": reported_liabilities,
+        "reported_equity": reported_equity,
     }
-    return raw, meta
 
 
-def _reconciles(raw: RawFinancials, meta: dict) -> bool:
+def _financials_from_payload(payload: dict, debt: float | None, total_liabilities: float | None) -> RawFinancials:
+    """Assemble the RawFinancials the screening engine expects from the payload."""
+    return RawFinancials(
+        company_name=payload.get("company_name") or "",
+        ticker=payload.get("ticker") or "",
+        business_compliant=bool(payload.get("business_compliant", True)),
+        business_activity=payload.get("business_activity") or "",
+        total_assets=_as_number(payload.get("total_assets")),
+        interest_bearing_debt=debt,
+        noncompliant_investments=_as_number(payload.get("noncompliant_investments")),
+        noncompliant_income=_as_number(payload.get("noncompliant_income")),
+        total_revenue=_as_number(payload.get("total_revenue")),
+        illiquid_assets=_as_number(payload.get("illiquid_assets")),
+        total_liabilities=total_liabilities,
+        number_of_shares=_as_number(payload.get("number_of_shares")),
+        market_price_per_share=_as_number(payload.get("market_price_per_share")),
+    )
+
+
+def _extract_once(client, model: str, content_block: dict) -> tuple[RawFinancials, dict]:
+    """Run a single extraction and turn the model's answer into financials + metadata."""
+    payload, usage = _request_extraction(client, model, content_block)
+    lines = payload.get("balance_sheet_lines") or []
+
+    debt, debt_method, debt_lines = _select_interest_bearing_debt(payload)
+    footing = _check_section_footing(payload)
+
+    equity = footing["reported_equity"]
+    if equity is None:
+        equity = _sum_section(lines, ("equity",))
+    total_liabilities = footing["reported_liabilities"]
+    if total_liabilities is None:
+        total_liabilities = _sum_section(lines, ("non_current_liability", "current_liability"))
+
+    financials = _financials_from_payload(payload, debt, total_liabilities)
+
+    input_tokens = getattr(usage, "input_tokens", None)
+    output_tokens = getattr(usage, "output_tokens", None)
+    debt_is_low_confidence = debt_method == "balance_sheet_lines" and footing["liabilities_foot"] is False
+
+    meta = {
+        "currency_unit": payload.get("currency_unit") or "",
+        "period": payload.get("period") or "",
+        "reporting_period_months": payload.get("reporting_period_months"),
+        "extraction_notes": payload.get("extraction_notes") or "",
+        "model": model,
+        "evidence": payload.get("evidence") or [],
+        "total_equity": equity,
+        "debt_method": debt_method,
+        "debt_lines": debt_lines,
+        "balance_sheet_lines": lines,
+        "lines_foot": footing["everything_foots"],
+        "foot_liabilities": footing["liabilities_foot"],
+        "liab_lines_sum": footing["liability_lines_sum"],
+        "reported_total_liabilities": footing["reported_liabilities"],
+        "debt_low_confidence": bool(debt_is_low_confidence),
+        "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens} if input_tokens is not None else None,
+        "cost_usd": estimate_cost(model, input_tokens, output_tokens),
+    }
+    return financials, meta
+
+
+def _balance_sheet_reconciles(raw: RawFinancials, meta: dict) -> bool:
     """Balance-sheet identity check: Total Assets ≈ Total Equity + Total Liabilities."""
     eq = meta.get("total_equity")
     if raw.total_assets and eq is not None and raw.total_liabilities is not None:
@@ -693,7 +749,7 @@ def _reconciles(raw: RawFinancials, meta: dict) -> bool:
     return True  # can't check → don't force escalation on this alone
 
 
-def _needs_stronger(raw: RawFinancials, model: str) -> bool:
+def _should_escalate_for_debt(raw: RawFinancials, model: str) -> bool:
     """True when the cheapest tier shouldn't be trusted as the final answer.
 
     Reconciliation can't catch a *consistent* misread — Haiku read Crescent's
@@ -702,7 +758,7 @@ def _needs_stronger(raw: RawFinancials, model: str) -> bool:
     decides the debt screen), confirm with a stronger model. Near-debt-free
     companies stay on the cheap model.
     """
-    if _tier_of(model) != "haiku":
+    if _model_tier(model) != "haiku":
         return False
     ta, debt = raw.total_assets, raw.interest_bearing_debt
     return bool(ta and debt is not None and debt > ta * 0.10)
@@ -716,9 +772,27 @@ def extract_financials(
     """Single-model extraction (prepares the document locally first)."""
     client = build_client(provider, api_key=api_key, aws_access_key=aws_access_key, aws_secret_key=aws_secret_key, aws_region=aws_region, aws_session_token=aws_session_token)
     mode, payload = prepare_document(file_bytes, filename)
-    raw, meta = _extract_once(client, model, _prepared_block(mode, payload, filename), provider)
+    raw, meta = _extract_once(client, model, _prepared_block(mode, payload, filename))
     meta["mode"] = mode
     return raw, meta
+
+
+def _models_to_try(model: str | None, provider: str, ladder: list[str] | None, escalate: bool) -> list[str]:
+    """The ordered list of model IDs smart_extract will attempt, cheapest first."""
+    if model:
+        return [model]
+    models = ladder or MODEL_LADDER.get(provider, [DEFAULT_MODEL])
+    return models if escalate else models[:1]
+
+
+def _good_enough_to_stop(financials: RawFinancials, meta: dict, model: str) -> bool:
+    """Whether this model's result is solid enough to stop climbing the ladder."""
+    return (
+        _extraction_is_plausible(financials)
+        and _balance_sheet_reconciles(financials, meta)
+        and meta.get("foot_liabilities") is not False
+        and not _should_escalate_for_debt(financials, model)
+    )
 
 
 def smart_extract(
@@ -736,45 +810,52 @@ def smart_extract(
     """
     client = build_client(provider, api_key=api_key, aws_access_key=aws_access_key, aws_secret_key=aws_secret_key, aws_region=aws_region, aws_session_token=aws_session_token)
     mode, payload = prepare_document(file_bytes, filename)
-    block = _prepared_block(mode, payload, filename)
-
-    if model:
-        models = [model]
-    else:
-        models = ladder or MODEL_LADDER.get(provider, [DEFAULT_MODEL])
-        if not escalate:
-            models = models[:1]
+    content_block = _prepared_block(mode, payload, filename)
 
     attempts: list[dict] = []
     total_cost = 0.0
-    raw, meta, used, last_error = None, {}, None, None
-    for m in models:
+    financials = None
+    final_meta: dict = {}
+    final_model = None
+    last_error = None
+
+    for current_model in _models_to_try(model, provider, ladder, escalate):
         try:
-            r, mt = _extract_once(client, m, block, provider)
+            current_financials, current_meta = _extract_once(client, current_model, content_block)
         except ExtractionError as exc:
-            # e.g. a legacy/blocked Bedrock model — skip to the next tier.
             last_error = exc
-            attempts.append({"model": m, "error": str(exc)[:160]})
+            attempts.append({"model": current_model, "error": str(exc)[:160]})
             continue
-        used, raw, meta = m, r, mt
-        u = mt.get("usage") or {}
-        attempts.append({"model": m, "input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"), "cost_usd": mt.get("cost_usd")})
-        total_cost += mt.get("cost_usd") or 0.0
-        if (_sufficient(raw) and _reconciles(raw, meta)
-                and meta.get("foot_liabilities") is not False  # liability lines must foot to their subtotal
-                and not _needs_stronger(raw, m)):
+
+        financials, final_meta, final_model = current_financials, current_meta, current_model
+        usage = current_meta.get("usage") or {}
+        attempts.append({
+            "model": current_model,
+            "input_tokens": usage.get("input_tokens"),
+            "output_tokens": usage.get("output_tokens"),
+            "cost_usd": current_meta.get("cost_usd"),
+        })
+        total_cost += current_meta.get("cost_usd") or 0.0
+        if _good_enough_to_stop(current_financials, current_meta, current_model):
             break
 
-    if raw is None:
+    if financials is None:
         raise last_error or ExtractionError("No model could extract the document.")
 
-    meta = dict(meta)
-    meta.update({"mode": mode, "attempts": attempts, "total_cost_usd": total_cost,
-                 "final_model": used, "model": used, "escalated": len([a for a in attempts if "error" not in a]) > 1})
-    return raw, meta
+    successful_attempts = [attempt for attempt in attempts if "error" not in attempt]
+    meta = dict(final_meta)
+    meta.update({
+        "mode": mode,
+        "attempts": attempts,
+        "total_cost_usd": total_cost,
+        "final_model": final_model,
+        "model": final_model,
+        "escalated": len(successful_attempts) > 1,
+    })
+    return financials, meta
 
 
-def _num(value: object) -> float | None:
+def _as_number(value: object) -> float | None:
     if value is None:
         return None
     try:
