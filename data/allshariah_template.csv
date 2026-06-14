@@ -1,0 +1,10 @@
+ticker,company_name,objective_status,debt_ratio,investment_ratio,income_ratio,illiquid_assets_ratio,net_liquid_assets_ratio,share_price,final_shariah_status,source_document,source_period,notes
+ABOT,Abbott Lab (Pakistan) Ltd,Compliant,1.04,0.00,0.63,61.42,29.33,1050.14,Compliant,Karachi-Meezan-Index.pdf,Period ended December 2025,
+LUCK,Lucky Cement Ltd,Compliant,26.26,0.30,0.27,86.25,-866.19,0.00,Compliant,Karachi-Meezan-Index.pdf,Period ended December 2025,
+ASTL,Amreli Steels Ltd,Compliant,35.91,0.07,5.27,71.51,-61.69,0.00,Non-Compliant,Karachi-Meezan-Index.pdf,Period ended December 2025,Income ratio exceeds NCInc/TR < 5%.
+AABS,Al-Abbas Sugar Mills Ltd,Compliant,22.66,53.64,2.46,30.53,238.97,1040.47,Non-Compliant,Karachi-Meezan-Index.pdf,Period ended December 2025,Investment ratio exceeds NCInv/TA < 33%.
+BAPL,Bawany Air Product Ltd,Compliant,2.34,0.34,0.00,2.42,406.32,44.61,Non-Compliant,Karachi-Meezan-Index.pdf,Period ended December 2025,Illiquid assets ratio and net liquid assets check fail.
+KAPCO,Kot Addu Power Company,Compliant,0.00,37.17,17.79,36.16,37.96,37.52,Non-Compliant,Karachi-Meezan-Index.pdf,Period ended December 2025,Multiple threshold breaches in source row.
+MCB,MCB Bank Ltd,Non-Compliant,,,,,,,Non-Compliant,All-Share-Islamic-Index.pdf,Period ended December 2025,NC by Nature - conventional banking.
+AAL,Agro Allianz Limited,Compliant,,,,,,,Review Required,All-Share-Islamic-Index.pdf,Period ended December 2025,As no recent financial available therefore no Shariah opinion is drawn.
+DCR,Dolmen City REIT,Compliant,0.00,0.00,0.00,98.84,-0.62,0.00,Compliant,All-Share-Islamic-Index.pdf,Period ended December 2025,REIT row from source report.
