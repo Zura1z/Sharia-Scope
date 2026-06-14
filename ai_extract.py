@@ -45,12 +45,18 @@ EXTRACTION_TOOL = {
                 "gambling, pork, adult media, interest-based finance); otherwise true.",
             },
             "total_assets": _NUM,
-            "interest_bearing_debt": dict(_NUM, description="Short- + long-term interest-based borrowings/loans/leases."),
+            "interest_bearing_debt": dict(_NUM, description="Total interest-bearing debt if a single figure; otherwise leave and fill the components below."),
+            # Named components — transcribe these exact lines; code sums them so the
+            # model never has to judge 'which liability is debt' (it conflates deferred tax).
+            "long_term_borrowings": dict(_NUM, description="Non-current 'long term borrowings/financing' line ONLY. NOT deferred tax, advances, payables, or provisions."),
+            "short_term_borrowings": dict(_NUM, description="Current 'short term borrowings' / running finance line."),
+            "current_portion_long_term_debt": dict(_NUM, description="'Current and overdue portion of non-current liabilities' / current maturity of long-term financing."),
             "noncompliant_investments": dict(_NUM, description="ONLY investments in conventional/interest-based instruments (bonds, T-bills, conventional bank deposits/funds) and shares of companies that are themselves Shariah non-compliant. EXCLUDE investments in Shariah-compliant subsidiaries/associates. If the split is unclear, report what you can and note the assumption."),
             "noncompliant_income": dict(_NUM, description="Interest income plus income from other non-Shariah sources."),
             "total_revenue": dict(_NUM, description="Total revenue/turnover plus other income, used as the income-ratio denominator."),
             "illiquid_assets": dict(_NUM, description="Total assets minus liquid assets (cash, bank, receivables, short-term marketable investments)."),
-            "total_liabilities": _NUM,
+            "total_liabilities": dict(_NUM, description="ALL liabilities = non-current + current (= total assets − total equity)."),
+            "total_equity": dict(_NUM, description="Share capital and reserves subtotal (capital + reserves + revaluation surplus + retained earnings)."),
             "number_of_shares": dict(_NUM, description="Number of ordinary shares outstanding."),
             "market_price_per_share": dict(_NUM, description="Latest market price per share, if stated."),
             "currency_unit": {"type": ["string", "null"], "description": "e.g. 'PKR 000' or 'PKR mn'."},
@@ -76,9 +82,10 @@ EXTRACTION_TOOL = {
         },
         "required": [
             "company_name", "ticker", "business_activity", "business_compliant",
-            "total_assets", "interest_bearing_debt", "noncompliant_investments",
+            "total_assets", "interest_bearing_debt", "long_term_borrowings",
+            "short_term_borrowings", "current_portion_long_term_debt", "noncompliant_investments",
             "noncompliant_income", "total_revenue", "illiquid_assets",
-            "total_liabilities", "number_of_shares", "market_price_per_share",
+            "total_liabilities", "total_equity", "number_of_shares", "market_price_per_share",
             "currency_unit", "period", "extraction_notes", "evidence",
         ],
         "additionalProperties": False,
@@ -94,18 +101,30 @@ MODEL_PRICES = {
 }
 
 
+TIER_PRICES = {"haiku": (1.0, 5.0), "sonnet": (3.0, 15.0), "opus": (5.0, 25.0), "fable": (10.0, 50.0)}
+
+
 def estimate_cost(model: str, input_tokens: int | None, output_tokens: int | None) -> float | None:
-    """Estimate USD cost. Bedrock IDs are mapped to the base model (regional
-    prices vary, so Bedrock figures are approximate)."""
-    base = model or ""
-    for pref in ("us.anthropic.", "eu.anthropic.", "apac.anthropic.", "anthropic."):
-        if base.startswith(pref):
-            base = base[len(pref):]
-            break
-    price = MODEL_PRICES.get(base)
-    if not price or input_tokens is None or output_tokens is None:
+    """Estimate USD cost from per-1M prices. Matches versioned/Bedrock IDs by
+    base name, then by tier (regional Bedrock prices vary, so it's approximate)."""
+    if input_tokens is None or output_tokens is None:
+        return None
+    base = (model or "").lower()
+    price = next((p for k, p in MODEL_PRICES.items() if k in base), None)
+    if price is None:
+        price = next((p for t, p in TIER_PRICES.items() if t in base), None)
+    if price is None:
         return None
     return input_tokens / 1_000_000 * price[0] + output_tokens / 1_000_000 * price[1]
+
+
+def _region_prefix(region: str) -> str:
+    r = (region or "").lower()
+    if r.startswith("eu"):
+        return "eu."
+    if r.startswith("ap"):
+        return "apac."
+    return "us."
 
 
 # Cheapest → most capable. Smart extraction starts low and escalates only if
@@ -130,21 +149,29 @@ def list_bedrock_models(access_key=None, secret_key=None, region=None, session_t
         if session_token:
             kwargs["aws_session_token"] = session_token
     client = boto3.client("bedrock", **kwargs)
+    prefix = _region_prefix(kwargs["region_name"])
     ids: set[str] = set()
+    # ACTIVE foundation models -> build their regional inference-profile IDs
+    # (the modern models — Haiku 4.5, Sonnet 4.6, Opus 4.8 — are invoked this way).
     try:
-        resp = client.list_inference_profiles(maxResults=100)
-        for p in resp.get("inferenceProfileSummaries", []):
-            pid = p.get("inferenceProfileId", "")
-            if "anthropic" in pid.lower():
-                ids.add(pid)
+        for m in client.list_foundation_models(byProvider="Anthropic").get("modelSummaries", []):
+            mid = m.get("modelId", "")
+            status = (m.get("modelLifecycle") or {}).get("status", "")
+            its = m.get("inferenceTypesSupported") or []
+            if "claude" not in mid.lower() or status == "LEGACY" or "claude-3-" in mid:
+                continue  # skip legacy / 2024 models
+            if "INFERENCE_PROFILE" in its:
+                ids.add(prefix + mid)
+            if "ON_DEMAND" in its:
+                ids.add(mid)
     except Exception:
         pass
+    # also any explicitly-listed (non-legacy) inference profiles
     try:
-        resp = client.list_foundation_models(byProvider="Anthropic")
-        for m in resp.get("modelSummaries", []):
-            mid = m.get("modelId", "")
-            if "claude" in mid.lower() and "ON_DEMAND" in (m.get("inferenceTypesSupported") or []):
-                ids.add(mid)
+        for p in client.list_inference_profiles(maxResults=100).get("inferenceProfileSummaries", []):
+            pid = p.get("inferenceProfileId", "")
+            if "anthropic" in pid.lower() and "claude-3-" not in pid:
+                ids.add(pid)
     except Exception:
         pass
     return sorted(ids)
@@ -189,13 +216,34 @@ OCR_MAX_PAGES = 40     # cap OCR work on very long scanned documents
 TEXT_CHAR_CAP = 320_000  # ~80k tokens — bounds cost on huge documents
 
 SYSTEM_PROMPT = (
-    "You are a financial analyst preparing inputs for PSX/KMI Shariah screening. "
-    "Read the attached financial statements and extract the exact line items needed. "
-    "Use the company's STANDALONE (unconsolidated) accounts — PSX/KMI Shariah screening "
-    "is based on these, not the consolidated group accounts — and the most recent period. "
-    "Report amounts as plain numbers in a single consistent unit. If a figure genuinely is "
-    "not in the document, return null for it and explain in extraction_notes — never guess "
-    "or fabricate."
+    "You are a financial analyst preparing inputs for PSX/KMI Shariah screening. Read the "
+    "attached financial statements and extract the exact line items. Use the company's "
+    "STANDALONE (unconsolidated) accounts and the most recent period. All amounts in one "
+    "consistent unit. Return null for a figure only if it is genuinely absent; never guess.\n\n"
+    "CRITICAL CLASSIFICATION RULES — these prevent the most common mistakes:\n"
+    "- INTEREST-BEARING DEBT = ONLY borrowings/loans/finances/leases that carry interest/markup, "
+    "both non-current AND current (long-term borrowings + current maturity of long-term financing + "
+    "overdue portion + short-term borrowings / running finance). EXCLUDE all equity: share capital, "
+    "reserves, un-appropriated profit, and especially 'SURPLUS ON REVALUATION of property, plant and "
+    "equipment' (that is EQUITY, never debt). Also exclude deferred tax, trade/other payables, and "
+    "provisions.\n"
+    "- TOTAL LIABILITIES = ALL liabilities = non-current liabilities + current liabilities (NOT just "
+    "one of them). It equals Total Assets minus Total Equity.\n"
+    "- TOTAL EQUITY = the 'share capital and reserves' subtotal (capital + reserves + revaluation "
+    "surplus + un-appropriated profit).\n"
+    "- ILLIQUID ASSETS = total assets minus LIQUID assets (cash & bank, short-term marketable "
+    "investments, trade receivables). Property/plant/equipment, stores and stock-in-trade are ILLIQUID. "
+    "Illiquid assets must be <= total assets and is usually dominated by PP&E. Do NOT confuse "
+    "'cash & bank balances' with 'short-term investments'.\n"
+    "- NON-COMPLIANT INVESTMENTS = investments in conventional/interest instruments (TFCs, bonds, "
+    "T-bills, conventional funds/deposits) and shares of non-compliant companies. If a small "
+    "short-term investment exists but its nature is undisclosed, report 0 and say so in the note "
+    "(do not block on null) unless it is clearly material.\n"
+    "- NON-COMPLIANT INCOME = interest/markup income EARNED + income from non-Shariah sources (NOT "
+    "finance cost, which is interest PAID). If none is disclosed and other income is immaterial, "
+    "report 0 with a note.\n\n"
+    "RECONCILE before finishing: Total Assets MUST equal Total Equity + Total Liabilities. If your "
+    "numbers don't balance, re-read the statement of financial position and fix them."
 )
 
 _MEDIA_TYPES = {
@@ -464,10 +512,15 @@ def _extract_once(client, model: str, content_block: dict, provider: str) -> tup
     if isinstance(payload, str):
         payload = json.loads(payload)
 
+    # Prefer summing the named debt components (reliable transcription) over the
+    # model's own 'interest_bearing_debt' aggregate (which conflates deferred tax).
+    comps = [_num(payload.get(k)) for k in ("long_term_borrowings", "short_term_borrowings", "current_portion_long_term_debt")]
+    debt = sum(c for c in comps if c is not None) if any(c is not None for c in comps) else _num(payload.get("interest_bearing_debt"))
+
     raw = RawFinancials(
         company_name=payload.get("company_name") or "", ticker=payload.get("ticker") or "",
         business_compliant=bool(payload.get("business_compliant", True)), business_activity=payload.get("business_activity") or "",
-        total_assets=_num(payload.get("total_assets")), interest_bearing_debt=_num(payload.get("interest_bearing_debt")),
+        total_assets=_num(payload.get("total_assets")), interest_bearing_debt=debt,
         noncompliant_investments=_num(payload.get("noncompliant_investments")), noncompliant_income=_num(payload.get("noncompliant_income")),
         total_revenue=_num(payload.get("total_revenue")), illiquid_assets=_num(payload.get("illiquid_assets")),
         total_liabilities=_num(payload.get("total_liabilities")), number_of_shares=_num(payload.get("number_of_shares")),
@@ -479,11 +532,19 @@ def _extract_once(client, model: str, content_block: dict, provider: str) -> tup
     meta = {
         "currency_unit": payload.get("currency_unit") or "", "period": payload.get("period") or "",
         "extraction_notes": payload.get("extraction_notes") or "", "model": model,
-        "evidence": payload.get("evidence") or [],
+        "evidence": payload.get("evidence") or [], "total_equity": _num(payload.get("total_equity")),
         "usage": {"input_tokens": in_tok, "output_tokens": out_tok} if in_tok is not None else None,
         "cost_usd": estimate_cost(model, in_tok, out_tok),
     }
     return raw, meta
+
+
+def _reconciles(raw: RawFinancials, meta: dict) -> bool:
+    """Balance-sheet identity check: Total Assets ≈ Total Equity + Total Liabilities."""
+    eq = meta.get("total_equity")
+    if raw.total_assets and eq is not None and raw.total_liabilities is not None:
+        return abs(raw.total_assets - (eq + raw.total_liabilities)) <= raw.total_assets * 0.03
+    return True  # can't check → don't force escalation on this alone
 
 
 def extract_financials(
@@ -525,19 +586,28 @@ def smart_extract(
 
     attempts: list[dict] = []
     total_cost = 0.0
-    raw, meta, used = None, {}, models[0]
+    raw, meta, used, last_error = None, {}, None, None
     for m in models:
-        used = m
-        raw, meta = _extract_once(client, m, block, provider)
-        u = meta.get("usage") or {}
-        attempts.append({"model": m, "input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"), "cost_usd": meta.get("cost_usd")})
-        total_cost += meta.get("cost_usd") or 0.0
-        if _sufficient(raw):
+        try:
+            r, mt = _extract_once(client, m, block, provider)
+        except ExtractionError as exc:
+            # e.g. a legacy/blocked Bedrock model — skip to the next tier.
+            last_error = exc
+            attempts.append({"model": m, "error": str(exc)[:160]})
+            continue
+        used, raw, meta = m, r, mt
+        u = mt.get("usage") or {}
+        attempts.append({"model": m, "input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"), "cost_usd": mt.get("cost_usd")})
+        total_cost += mt.get("cost_usd") or 0.0
+        if _sufficient(raw) and _reconciles(raw, meta):
             break
+
+    if raw is None:
+        raise last_error or ExtractionError("No model could extract the document.")
 
     meta = dict(meta)
     meta.update({"mode": mode, "attempts": attempts, "total_cost_usd": total_cost,
-                 "final_model": used, "model": used, "escalated": len(attempts) > 1})
+                 "final_model": used, "model": used, "escalated": len([a for a in attempts if "error" not in a]) > 1})
     return raw, meta
 
 
