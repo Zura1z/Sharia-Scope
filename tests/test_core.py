@@ -476,3 +476,42 @@ def test_needs_stronger_escalates_haiku_only_on_material_debt():
     assert ai_extract._should_escalate_for_debt(debt_light, "eu.anthropic.claude-haiku-4-5-20251001-v1:0") is False
     # A stronger tier is already the final word — never "needs stronger".
     assert ai_extract._should_escalate_for_debt(levered, "eu.anthropic.claude-sonnet-4-6") is False
+
+
+def test_share_count_derived_from_paid_up_capital_matches_reported():
+    import ai_extract
+
+    # Ghani: paid-up capital 9,997 (mn) / Rs.10 = ~1,000 (mn) shares, agreeing with
+    # the model's own count — so the directly-read count is kept.
+    shares, source, mismatch = ai_extract._shares_outstanding(
+        {"number_of_shares": 1000.0, "paid_up_capital": 9997.0, "share_face_value": 10.0}
+    )
+    assert source == "reported" and mismatch is False and shares == 1000.0
+
+
+def test_share_count_fixes_scale_mismatch_using_paid_up_capital():
+    import ai_extract
+
+    # Balance sheet read in millions (capital 9,997mn -> 999.7mn shares) but the
+    # share count read in actual units (1,000,000,000). That power-of-1000 gap is
+    # corrected to the balance-sheet scale and flagged.
+    shares, source, mismatch = ai_extract._shares_outstanding(
+        {"number_of_shares": 1_000_000_000.0, "paid_up_capital": 9997.0, "share_face_value": 10.0}
+    )
+    assert source == "paid_up_capital" and mismatch is True
+    assert abs(shares - 999.7) < 0.1
+
+
+def test_share_count_falls_back_to_reported_without_capital():
+    import ai_extract
+
+    shares, source, mismatch = ai_extract._shares_outstanding({"number_of_shares": 500.0})
+    assert source == "reported" and mismatch is False and shares == 500.0
+
+
+def test_looks_like_scale_gap():
+    import ai_extract
+
+    assert ai_extract._looks_like_scale_gap(1000.0, 1_000_000.0) is True   # x1000
+    assert ai_extract._looks_like_scale_gap(5.0, 10.0) is False            # face-value diff, not scale
+    assert ai_extract._looks_like_scale_gap(0, 1000.0) is False

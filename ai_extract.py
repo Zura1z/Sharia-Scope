@@ -58,6 +58,8 @@ EXTRACTION_TOOL = {
             "total_liabilities": dict(_NUM, description="ALL liabilities = non-current + current (= total assets − total equity)."),
             "total_equity": dict(_NUM, description="Share capital and reserves subtotal (capital + reserves + revaluation surplus + retained earnings)."),
             "number_of_shares": dict(_NUM, description="Number of ordinary shares outstanding."),
+            "paid_up_capital": dict(_NUM, description="Issued, subscribed and paid-up share CAPITAL — a money amount in the same unit as the other figures (NOT a share count). Used to cross-check the share count's scale."),
+            "share_face_value": dict(_NUM, description="Par/face value per share, from 'ordinary shares of Rs. X each' (PSX is almost always 10, occasionally 5)."),
             "market_price_per_share": dict(_NUM, description="Latest market price per share, if stated."),
             "currency_unit": {"type": ["string", "null"], "description": "e.g. 'PKR 000' or 'PKR mn'."},
             "period": {"type": ["string", "null"], "description": "Reporting period, e.g. 'Year ended 30 June 2025' or '3rd quarter ended 31 March 2026'."},
@@ -110,7 +112,8 @@ EXTRACTION_TOOL = {
             "total_assets", "interest_bearing_debt", "long_term_borrowings",
             "short_term_borrowings", "current_portion_long_term_debt", "noncompliant_investments",
             "noncompliant_income", "total_revenue", "illiquid_assets",
-            "total_liabilities", "total_equity", "number_of_shares", "market_price_per_share",
+            "total_liabilities", "total_equity", "number_of_shares", "paid_up_capital",
+            "share_face_value", "market_price_per_share",
             "currency_unit", "period", "reporting_period_months", "balance_sheet_lines",
             "extraction_notes", "evidence",
         ],
@@ -352,7 +355,11 @@ SYSTEM_PROMPT = (
     "with their real labels (never relabel them as borrowings).\n"
     "REPORTING PERIOD: set 'reporting_period_months' to how many months the income statement covers "
     "(12 = full year, 9 = three quarters, 6 = half year, 3 = one quarter). The income ratio uses revenue "
-    "and non-compliant income from THIS SAME period.\n\n"
+    "and non-compliant income from THIS SAME period.\n"
+    "SHARE COUNT: report 'paid_up_capital' (the issued/paid-up share capital money amount, in the SAME "
+    "unit as every other figure) and 'share_face_value' (e.g. 10 from 'shares of Rs. 10 each'). "
+    "'number_of_shares' must be on the same scale as the balance-sheet amounts: if you scaled the "
+    "statement to millions, the share count is in millions too.\n\n"
     "RECONCILE before finishing: Total Assets MUST equal Total Equity + Total Liabilities. If your "
     "numbers don't balance, re-read the statement of financial position and fix them."
 )
@@ -679,7 +686,50 @@ def _check_section_footing(payload: dict) -> dict:
     }
 
 
-def _financials_from_payload(payload: dict, debt: float | None, total_liabilities: float | None) -> RawFinancials:
+STANDARD_FACE_VALUES = (1.0, 2.0, 5.0, 10.0, 50.0, 100.0)
+
+
+def _looks_like_scale_gap(a: float, b: float) -> bool:
+    """True if two values differ by roughly a factor of 1,000 / 1,000,000 / 1,000,000,000.
+
+    That is the signature of a units mismatch — e.g. the balance sheet read in
+    millions but the share count read in actual units.
+    """
+    if not a or not b:
+        return False
+    ratio = max(a, b) / min(a, b)
+    return any(abs(ratio - factor) <= factor * 0.1 for factor in (1_000, 1_000_000, 1_000_000_000))
+
+
+def _shares_outstanding(payload: dict) -> tuple[float | None, str, bool]:
+    """Pick a share count that is on the same scale as the balance sheet.
+
+    The NLA-per-share screen divides balance-sheet figures by the share count, so
+    the two must share a scale. A count derived from paid-up capital is guaranteed
+    to, so when the model's own share count differs from it by a power of 1,000
+    (a units mismatch) we use the derived one and flag it. Otherwise we trust the
+    count the model read directly. Returns ``(shares, source, scale_mismatch)``.
+    """
+    reported = _as_number(payload.get("number_of_shares"))
+    paid_up_capital = _as_number(payload.get("paid_up_capital"))
+    face_value = _as_number(payload.get("share_face_value"))
+    if face_value not in STANDARD_FACE_VALUES:
+        face_value = 10.0  # PSX par value is almost always Rs. 10
+
+    derived = paid_up_capital / face_value if (paid_up_capital and face_value) else None
+    if not derived or derived <= 0:
+        return reported, "reported", False
+    if not reported or reported <= 0:
+        return derived, "paid_up_capital", False
+    if abs(reported - derived) <= derived * 0.05:
+        return reported, "reported", False
+    if _looks_like_scale_gap(reported, derived):
+        return derived, "paid_up_capital", True
+    return reported, "reported", False
+
+
+def _financials_from_payload(payload: dict, debt: float | None, total_liabilities: float | None,
+                             number_of_shares: float | None) -> RawFinancials:
     """Assemble the RawFinancials the screening engine expects from the payload."""
     return RawFinancials(
         company_name=payload.get("company_name") or "",
@@ -693,7 +743,7 @@ def _financials_from_payload(payload: dict, debt: float | None, total_liabilitie
         total_revenue=_as_number(payload.get("total_revenue")),
         illiquid_assets=_as_number(payload.get("illiquid_assets")),
         total_liabilities=total_liabilities,
-        number_of_shares=_as_number(payload.get("number_of_shares")),
+        number_of_shares=number_of_shares,
         market_price_per_share=_as_number(payload.get("market_price_per_share")),
     )
 
@@ -705,6 +755,7 @@ def _extract_once(client, model: str, content_block: dict) -> tuple[RawFinancial
 
     debt, debt_method, debt_lines = _select_interest_bearing_debt(payload)
     footing = _check_section_footing(payload)
+    shares, share_source, share_scale_mismatch = _shares_outstanding(payload)
 
     equity = footing["reported_equity"]
     if equity is None:
@@ -713,7 +764,7 @@ def _extract_once(client, model: str, content_block: dict) -> tuple[RawFinancial
     if total_liabilities is None:
         total_liabilities = _sum_section(lines, ("non_current_liability", "current_liability"))
 
-    financials = _financials_from_payload(payload, debt, total_liabilities)
+    financials = _financials_from_payload(payload, debt, total_liabilities, shares)
 
     input_tokens = getattr(usage, "input_tokens", None)
     output_tokens = getattr(usage, "output_tokens", None)
@@ -735,6 +786,8 @@ def _extract_once(client, model: str, content_block: dict) -> tuple[RawFinancial
         "liab_lines_sum": footing["liability_lines_sum"],
         "reported_total_liabilities": footing["reported_liabilities"],
         "debt_low_confidence": bool(debt_is_low_confidence),
+        "share_count_source": share_source,
+        "share_scale_mismatch": share_scale_mismatch,
         "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens} if input_tokens is not None else None,
         "cost_usd": estimate_cost(model, input_tokens, output_tokens),
     }

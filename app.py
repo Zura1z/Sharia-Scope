@@ -368,6 +368,8 @@ def build_record(raw, ratios, evaluation, meta, *, extraction=None, provider="",
         "evidence": extraction.get("evidence") or [],
         "debt_lines": extraction.get("debt_lines") or [],
         "debt_method": extraction.get("debt_method", ""),
+        "share_count_source": extraction.get("share_count_source", ""),
+        "share_scale_mismatch": bool(extraction.get("share_scale_mismatch")),
         "extraction_cost_usd": extraction.get("total_cost_usd", extraction.get("cost_usd")),
         "extraction_mode": extraction.get("mode", ""),
         "verified": bool(verified),
@@ -413,6 +415,7 @@ if "pending_load" in st.session_state:
         "reporting_period_months": rec.get("reporting_period_months"),
         "evidence": rec.get("evidence") or [], "extraction_notes": rec.get("extraction_notes", ""),
         "debt_lines": rec.get("debt_lines") or [], "debt_method": rec.get("debt_method", ""),
+        "share_count_source": rec.get("share_count_source", ""), "share_scale_mismatch": rec.get("share_scale_mismatch", False),
         "model": rec.get("ai_model", ""), "usage": None, "cost_usd": None,
     }
     st.session_state["from_ai"] = False
@@ -615,6 +618,8 @@ if nav == "Analyze":
                     st.caption("Computed deterministically from the transcribed balance sheet — code classifies which liabilities are debt, not the model.")
             if (meta_ex or {}).get("debt_low_confidence"):
                 st.warning("⚠️ The transcribed liability lines don't add up to the printed subtotal, so the **interest-bearing debt figure may be off** — double-check it against the statement before relying on the verdict.")
+            if (meta_ex or {}).get("share_scale_mismatch"):
+                st.warning("⚠️ The share count looked like it was read in a different unit than the balance sheet, so it was recomputed from paid-up capital ÷ face value to keep the net-liquid-assets-per-share screen consistent. Confirm **Number of shares** against the statement.")
             if (meta_ex or {}).get("extraction_notes"):
                 st.caption("AI notes: " + meta_ex["extraction_notes"])
             if evidence:
