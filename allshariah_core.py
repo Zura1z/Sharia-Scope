@@ -327,6 +327,195 @@ def calculate_purification(
     return total_dividend, purification_amount
 
 
+# ---------------------------------------------------------------------------
+# Analyze-any-company engine
+#
+# The functions above read pre-computed ratios from a row (the lookup path).
+# The functions below compute those ratios from a company's *raw* financial
+# line items, so the screener works for ANY company — listed by Meezan or not.
+# The PSX/KMI index sheet is used only as a ground-truth backtest set, never as
+# the source of truth for a live screen.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RawFinancials:
+    """Raw balance-sheet / income-statement inputs for one company.
+
+    Amounts are in the same currency unit (e.g. PKR '000); only ratios matter,
+    so the unit cancels out. ``number_of_shares`` and ``market_price_per_share``
+    drive the net-liquid-assets-per-share screen.
+    """
+
+    company_name: str = ""
+    ticker: str = ""
+    business_compliant: bool = True
+    business_activity: str = ""
+    total_assets: float | None = None
+    interest_bearing_debt: float | None = None
+    noncompliant_investments: float | None = None
+    noncompliant_income: float | None = None
+    total_revenue: float | None = None
+    illiquid_assets: float | None = None
+    total_liabilities: float | None = None
+    number_of_shares: float | None = None
+    market_price_per_share: float | None = None
+
+
+def _ratio(numerator: float | None, denominator: float | None) -> float | None:
+    if numerator is None or denominator in (None, 0):
+        return None
+    return numerator / denominator * 100.0
+
+
+def compute_ratios(raw: RawFinancials) -> dict[str, object]:
+    """Compute the six PSX/KMI screening ratios from raw financials.
+
+    Returns a row dict shaped like the canonical columns so it can be fed
+    straight into :func:`screen_metrics`.
+    """
+    nla_per_share: float | None = None
+    if (
+        None not in (raw.total_assets, raw.illiquid_assets, raw.total_liabilities)
+        and raw.number_of_shares not in (None, 0)
+    ):
+        net_liquid_assets = raw.total_assets - raw.illiquid_assets - raw.total_liabilities
+        nla_per_share = net_liquid_assets / raw.number_of_shares
+
+    return {
+        "ticker": raw.ticker,
+        "company_name": raw.company_name,
+        "objective_status": "Compliant" if raw.business_compliant else "Non-Compliant",
+        "debt_ratio": _ratio(raw.interest_bearing_debt, raw.total_assets),
+        "investment_ratio": _ratio(raw.noncompliant_investments, raw.total_assets),
+        "income_ratio": _ratio(raw.noncompliant_income, raw.total_revenue),
+        "illiquid_assets_ratio": _ratio(raw.illiquid_assets, raw.total_assets),
+        "net_liquid_assets_ratio": nla_per_share,
+        "share_price": raw.market_price_per_share,
+        "final_shariah_status": "",
+        "source_document": "",
+        "source_period": "",
+        "notes": raw.business_activity,
+    }
+
+
+def screen_metrics(row: pd.Series | dict[str, object]) -> CompanyEvaluation:
+    """Screen a company purely from its ratios + business activity.
+
+    Unlike :func:`evaluate_company`, this never trusts a pre-existing
+    ``final_shariah_status`` — the verdict is computed from the numbers alone.
+    This is what powers the Analyze tab and the validation backtest.
+    """
+    row_dict = dict(row)
+    notes = str(row_dict.get("notes", "") or "").strip()
+    objective = str(row_dict.get("objective_status", "") or "").lower()
+
+    if has_nc_by_nature(objective) or "non-compliant" in objective or "non compliant" in objective:
+        return CompanyEvaluation(
+            status="non_compliant",
+            status_label="Non-Compliant by Nature",
+            metric_results=[],
+            failure_reasons=["Core business activity is not Shariah-compliant (screened out by sector)."],
+            notes=notes,
+        )
+
+    metric_results = evaluate_metric_rules(row_dict)
+    failure_reasons = [
+        f"{result.label} breaches {result.threshold}."
+        for result in metric_results
+        if result.passed is False
+    ]
+    missing_metrics = [result.label for result in metric_results if result.passed is None]
+
+    if missing_metrics:
+        return CompanyEvaluation(
+            status="review",
+            status_label="Review Required",
+            metric_results=metric_results,
+            failure_reasons=["Missing required input(s): " + ", ".join(missing_metrics) + "."],
+            notes=notes,
+        )
+
+    if failure_reasons:
+        return CompanyEvaluation(
+            status="non_compliant",
+            status_label="Non-Compliant",
+            metric_results=metric_results,
+            failure_reasons=failure_reasons,
+            notes=notes,
+        )
+
+    return CompanyEvaluation(
+        status="compliant",
+        status_label="Compliant",
+        metric_results=metric_results,
+        failure_reasons=[],
+        notes=notes,
+    )
+
+
+def screen_financials(raw: RawFinancials) -> tuple[dict[str, object], CompanyEvaluation]:
+    """Compute ratios from raw financials and screen them in one step."""
+    ratios = compute_ratios(raw)
+    return ratios, screen_metrics(ratios)
+
+
+def _normalize_class(label: str) -> str:
+    """Collapse a status label to Compliant / Non-Compliant / Review Required."""
+    low = label.lower()
+    if "review" in low:
+        return "Review Required"
+    if "compliant" in low and "non" not in low:
+        return "Compliant"
+    return "Non-Compliant"
+
+
+def backtest(df: pd.DataFrame) -> dict[str, object]:
+    """Run the analyzer over a labelled index sheet and score it against Meezan.
+
+    For every row, recompute the verdict from the ratios alone and compare it to
+    the sheet's published ``final_shariah_status``. Rows the analyzer can't
+    resolve (missing inputs) are counted as indeterminate, not as wrong.
+    """
+    total = len(df)
+    agree = 0
+    indeterminate = 0
+    mismatches: list[dict[str, str]] = []
+
+    for _, row in df.iterrows():
+        official = _normalize_class(str(row.get("final_shariah_status", "")))
+        evaluation = screen_metrics(row)
+        predicted = _normalize_class(evaluation.status_label)
+
+        if predicted == "Review Required":
+            indeterminate += 1
+            continue
+        if predicted == official:
+            agree += 1
+        else:
+            mismatches.append(
+                {
+                    "ticker": str(row.get("ticker", "")),
+                    "company_name": str(row.get("company_name", "")),
+                    "analyzer": predicted,
+                    "official": official,
+                    "reasons": "; ".join(evaluation.failure_reasons),
+                    "notes": str(row.get("notes", "") or ""),
+                }
+            )
+
+    determinate = total - indeterminate
+    accuracy = (agree / determinate) if determinate else 0.0
+    return {
+        "total": total,
+        "agree": agree,
+        "disagree": len(mismatches),
+        "indeterminate": indeterminate,
+        "accuracy": accuracy,
+        "mismatches": mismatches,
+    }
+
+
 def evaluate_threshold(value: float | None, operator: str, limit: float) -> bool | None:
     if value is None:
         return None

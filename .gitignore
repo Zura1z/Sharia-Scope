@@ -5,3 +5,9 @@ __pycache__/
 .DS_Store
 .streamlit/secrets.toml
 
+# Firebase / Google service-account credentials — never commit these
+firebase-service-account.json
+*service-account*.json
+*serviceaccount*.json
+*-firebase-adminsdk-*.json
+
