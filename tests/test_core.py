@@ -290,6 +290,20 @@ def test_storage_credentials_optional(monkeypatch):
     assert storage.resolve_credentials(cred) is cred
 
 
+def test_sufficient_escalates_on_implausible_values():
+    import ai_extract
+    from allshariah_core import RawFinancials
+
+    # The real Dewan Cement case: Haiku put the revaluation surplus (16.0M, equity)
+    # into interest-bearing debt — which exceeds total liabilities (6.4M). Must escalate.
+    bad = RawFinancials(total_assets=47553165, total_revenue=18225608, interest_bearing_debt=16041308,
+                        illiquid_assets=35969816, total_liabilities=6433341)
+    assert ai_extract._sufficient(bad) is False
+    good = RawFinancials(total_assets=1000, total_revenue=200, interest_bearing_debt=100,
+                         illiquid_assets=400, total_liabilities=300)
+    assert ai_extract._sufficient(good) is True
+
+
 def test_bedrock_ladder_orders_cheap_to_expensive():
     import ai_extract
 

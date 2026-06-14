@@ -415,9 +415,24 @@ def _prepared_block(mode: str, payload: object, filename: str) -> dict:
 
 
 def _sufficient(raw: RawFinancials) -> bool:
-    """Did a cheaper model recover enough of the critical figures to stop?"""
+    """Did a cheaper model recover enough — and *plausible* — figures to stop?
+
+    Presence alone isn't enough: a value that's present but obviously wrong
+    (e.g. interest-bearing debt > total liabilities — the classic 'revaluation
+    surplus mistaken for debt' mistake, or any item exceeding total assets)
+    forces escalation to a stronger model.
+    """
     critical = [raw.total_assets, raw.total_revenue, raw.interest_bearing_debt, raw.illiquid_assets, raw.total_liabilities]
-    return sum(1 for v in critical if v is not None) >= 4
+    if sum(1 for v in critical if v is not None) < 4:
+        return False
+    ta, tl = raw.total_assets, raw.total_liabilities
+    if raw.interest_bearing_debt is not None and tl is not None and raw.interest_bearing_debt > tl * 1.02:
+        return False  # debt cannot exceed total liabilities
+    if ta:
+        for v in (raw.interest_bearing_debt, raw.total_liabilities, raw.noncompliant_investments, raw.illiquid_assets):
+            if v is not None and v > ta * 1.05:
+                return False  # no balance-sheet item should exceed total assets
+    return True
 
 
 def _extract_once(client, model: str, content_block: dict, provider: str) -> tuple[RawFinancials, dict]:
