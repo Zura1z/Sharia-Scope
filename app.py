@@ -60,8 +60,8 @@ st.markdown(
     """
     <style>
       #MainMenu, header [data-testid="stToolbar"], footer {visibility: hidden;}
-      .block-container {padding-top: 1.6rem; max-width: 1080px;}
-      .ss-title {font-size: 1.7rem; font-weight: 700; color: var(--text-color); margin:0;}
+      .block-container {padding-top: 2.6rem; max-width: 1080px;}
+      .ss-title {font-size: 1.7rem; font-weight: 700; color: var(--text-color); margin:0; line-height:1.55; padding-top:.25rem;}
       .ss-tag {color: var(--text-color); opacity:.7; font-size:.9rem; margin:.1rem 0 0;}
       .ss-chip {display:inline-block; border:1px solid rgba(128,128,128,.3); border-radius:999px;
                 padding:3px 11px; font-size:.74rem; margin:2px 6px 2px 0; color:var(--text-color);}
@@ -81,37 +81,53 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- Config defaults (used by the Settings dialog + read_config) ------------
-st.session_state.setdefault("cfg_provider_label", "Anthropic API")
-st.session_state.setdefault("cfg_model", MODEL_OPTIONS[0])
-st.session_state.setdefault("cfg_bedrock_model", ai_extract.DEFAULT_BEDROCK_MODEL)
+# --- Persistent config (NOT widget keys: dialog widget keys get wiped when the
+#     dialog closes, so the Settings dialog syncs into these on "Done"). --------
+st.session_state.setdefault("provider_label", "Anthropic API")
+st.session_state.setdefault("model", MODEL_OPTIONS[0])
+st.session_state.setdefault("bedrock_model", ai_extract.DEFAULT_BEDROCK_MODEL)
+st.session_state.setdefault("smart", True)
+st.session_state.setdefault("aws_region", "eu-central-1")
+
+# Maps Settings-dialog widget keys (w_*) → persistent keys.
+_CFG_SYNC = {
+    "w_provider": "provider_label", "w_api_key": "api_key", "w_model": "model",
+    "w_bedrock_model": "bedrock_model", "w_aws_key": "aws_key", "w_aws_secret": "aws_secret",
+    "w_aws_region": "aws_region", "w_smart": "smart", "w_bucket": "bucket",
+}
+_CFG_DEFAULTS = {
+    "w_provider": "Anthropic API", "w_api_key": "", "w_model": MODEL_OPTIONS[0],
+    "w_bedrock_model": ai_extract.DEFAULT_BEDROCK_MODEL, "w_aws_key": "", "w_aws_secret": "",
+    "w_aws_region": "eu-central-1", "w_smart": True, "w_bucket": "",
+}
 
 
 def read_config():
-    """Resolve the effective AI + database config from session state."""
-    label = st.session_state.get("cfg_provider_label", "Anthropic API")
+    """Resolve the effective AI + database config from the PERSISTENT keys."""
+    label = st.session_state.get("provider_label", "Anthropic API")
     if label == "AWS Bedrock":
         provider = ai_extract.PROVIDER_BEDROCK
         ai_cfg = {
             "provider": provider,
-            "model": st.session_state.get("cfg_bedrock_model") or ai_extract.DEFAULT_BEDROCK_MODEL,
-            "aws_access_key": st.session_state.get("cfg_aws_key") or None,
-            "aws_secret_key": st.session_state.get("cfg_aws_secret") or None,
-            "aws_region": st.session_state.get("cfg_aws_region") or None,
+            "model": st.session_state.get("bedrock_model") or ai_extract.DEFAULT_BEDROCK_MODEL,
+            "aws_access_key": st.session_state.get("aws_key") or None,
+            "aws_secret_key": st.session_state.get("aws_secret") or None,
+            "aws_region": st.session_state.get("aws_region") or None,
         }
         key_present = ai_extract.credentials_present(
             provider, aws_access_key=ai_cfg["aws_access_key"], aws_secret_key=ai_cfg["aws_secret_key"], aws_region=ai_cfg["aws_region"]
         )
     else:
         provider = ai_extract.PROVIDER_ANTHROPIC
-        ai_cfg = {"provider": provider, "model": st.session_state.get("cfg_model", MODEL_OPTIONS[0]), "api_key": st.session_state.get("cfg_api_key") or None}
+        ai_cfg = {"provider": provider, "model": st.session_state.get("model", MODEL_OPTIONS[0]), "api_key": st.session_state.get("api_key") or None}
         key_present = ai_extract.credentials_present(provider, api_key=ai_cfg["api_key"])
+    ai_cfg["smart"] = st.session_state.get("smart", True)
 
     fb_cred, fb_bucket, storage_ok = None, None, False
     if storage.available():
         fb_cred = storage.resolve_credentials(st.session_state.get("fb_cred_dict"), base_dir=APP_DIR)
         if fb_cred:
-            fb_bucket = st.session_state.get("cfg_bucket") or storage.default_bucket(fb_cred)
+            fb_bucket = st.session_state.get("bucket") or storage.default_bucket(fb_cred)
             bk = f"storage_ok::{fb_bucket}"
             if bk not in st.session_state:
                 st.session_state[bk] = storage.bucket_exists(fb_cred, fb_bucket)
@@ -121,26 +137,63 @@ def read_config():
 
 @st.dialog("Settings", width="large")
 def settings_dialog():
+    # Seed dialog widgets from the persisted values (so re-opening shows them).
+    for wk, default in _CFG_DEFAULTS.items():
+        st.session_state.setdefault(wk, st.session_state.get(_CFG_SYNC[wk], default))
+
     st.caption("Credentials stay in this browser session; they are never written to the repo.")
     st.subheader("AI provider")
-    st.radio("Provider", ["Anthropic API", "AWS Bedrock"], key="cfg_provider_label", horizontal=True)
-    if st.session_state.get("cfg_provider_label") == "AWS Bedrock":
+    st.radio("Provider", ["Anthropic API", "AWS Bedrock"], key="w_provider", horizontal=True)
+    if st.session_state.get("w_provider") == "AWS Bedrock":
         st.caption("Leave keys blank to use your AWS default credential chain.")
-        st.text_input("AWS Access Key ID (optional)", type="password", key="cfg_aws_key")
-        st.text_input("AWS Secret Access Key (optional)", type="password", key="cfg_aws_secret")
-        st.text_input("AWS Region", key="cfg_aws_region", placeholder="blank = your configured region")
-        st.text_input("Bedrock model ID", key="cfg_bedrock_model")
+        st.text_input("AWS Access Key ID (optional)", type="password", key="w_aws_key")
+        st.text_input("AWS Secret Access Key (optional)", type="password", key="w_aws_secret")
+        st.text_input("AWS Region", key="w_aws_region")
+        if st.button("🔎 List available Claude models"):
+            with st.spinner("Querying Bedrock…"):
+                try:
+                    models = ai_extract.list_bedrock_models(
+                        st.session_state.get("w_aws_key") or None,
+                        st.session_state.get("w_aws_secret") or None,
+                        st.session_state.get("w_aws_region") or None,
+                    )
+                    st.session_state["bedrock_models"] = models
+                    if not models:
+                        st.warning("No Anthropic models found. Check the region, and that model access is granted in the Bedrock console.")
+                except Exception as exc:
+                    st.error(f"Could not list models: {exc}")
+        avail = st.session_state.get("bedrock_models") or []
+        if avail:
+            if st.session_state.get("w_bedrock_model") not in avail:
+                st.session_state["w_bedrock_model"] = avail[0]
+            st.selectbox(f"Bedrock model ({len(avail)} available)", avail, key="w_bedrock_model")
+            st.caption("Smart mode builds a Haiku → Sonnet → Opus ladder from these.")
+        else:
+            st.text_input("Bedrock model ID (list them above to populate)", key="w_bedrock_model")
+        if st.button("Test connection"):
+            with st.spinner("Testing…"):
+                err = ai_extract.test_connection(
+                    ai_extract.PROVIDER_BEDROCK, st.session_state.get("w_bedrock_model"),
+                    aws_access_key=st.session_state.get("w_aws_key") or None,
+                    aws_secret_key=st.session_state.get("w_aws_secret") or None,
+                    aws_region=st.session_state.get("w_aws_region") or None,
+                )
+                st.success("Connection OK.") if err is None else st.error(err)
     else:
-        st.text_input("Anthropic API key", type="password", key="cfg_api_key",
+        st.text_input("Anthropic API key", type="password", key="w_api_key",
                       help="Used only for AI extraction; or set ANTHROPIC_API_KEY.")
-        st.selectbox("Model", MODEL_OPTIONS, key="cfg_model", help="Opus is most accurate; Sonnet/Haiku are cheaper.")
+        st.selectbox("Model", MODEL_OPTIONS, key="w_model", help="Opus is most accurate; Sonnet/Haiku are cheaper.")
+
+    st.toggle("Smart extraction — start cheap (Haiku) and escalate only if needed", key="w_smart")
+    st.caption("Off = always use the model above. Local text/OCR is tried first either way, to cut tokens." +
+               ("" if ai_extract.ocr_available() else " (OCR engine not detected — scanned PDFs fall back to vision.)"))
 
     st.divider()
     st.subheader("Database (optional)")
     if not storage.available():
         st.caption("Install `firebase-admin` to enable saving runs.")
     else:
-        up = st.file_uploader("Firebase service-account JSON", type=["json"], key="cfg_db_file")
+        up = st.file_uploader("Firebase service-account JSON", type=["json"], key="w_db_file")
         if up is not None:
             try:
                 st.session_state["fb_cred_dict"] = json.loads(up.getvalue())
@@ -149,12 +202,25 @@ def settings_dialog():
         cred = storage.resolve_credentials(st.session_state.get("fb_cred_dict"), base_dir=APP_DIR)
         if cred:
             st.success(f"Key loaded for project `{cred.get('project_id', '?')}`.")
-            st.text_input("Storage bucket", key="cfg_bucket", placeholder=storage.default_bucket(cred))
+            st.text_input("Storage bucket", key="w_bucket", placeholder=storage.default_bucket(cred))
         else:
             st.caption("No key yet — runs won't be saved.")
     st.divider()
-    if st.button("Done", type="primary"):
-        # Re-check Storage reachability next run (creds/bucket may have changed).
+    st.subheader("AI spend")
+    sa = st.session_state.get("cost_total_anthropic", 0.0)
+    sb = st.session_state.get("cost_total_bedrock", 0.0)
+    st.caption(f"This session — Claude: ${sa:.4f} · Bedrock: ${sb:.4f}")
+    _cred = storage.resolve_credentials(st.session_state.get("fb_cred_dict"), base_dir=APP_DIR) if storage.available() else None
+    if _cred:
+        tot = storage.read_costs(_cred)
+        st.caption(f"All-time (Firebase) — Claude: ${tot.get('anthropic_usd', 0):.4f} · Bedrock: ${tot.get('bedrock_usd', 0):.4f}")
+
+    st.divider()
+    if st.button("Save & close", type="primary"):
+        # Persist widget values to the durable keys (they survive the dialog close).
+        for wk, pk in _CFG_SYNC.items():
+            if wk in st.session_state:
+                st.session_state[pk] = st.session_state[wk]
         for k in [k for k in st.session_state if k.startswith("storage_ok::")]:
             st.session_state.pop(k, None)
         st.rerun()
@@ -278,6 +344,8 @@ def build_record(raw, ratios, evaluation, meta, *, extraction=None, provider="",
         "ai_model": model,
         "extraction_notes": extraction.get("extraction_notes", ""),
         "evidence": extraction.get("evidence") or [],
+        "extraction_cost_usd": extraction.get("total_cost_usd", extraction.get("cost_usd")),
+        "extraction_mode": extraction.get("mode", ""),
         "verified": bool(verified),
         "draft": (data_source == "ai" and not verified),
         "parent_run_id": parent_run_id,
@@ -285,6 +353,16 @@ def build_record(raw, ratios, evaluation, meta, *, extraction=None, provider="",
         "app_version": APP_VERSION,
         "rule_version": RULE_VERSION,
     }
+
+
+def track_cost(provider, amount):
+    """Accumulate an extraction's cost into session totals (and Firebase if available)."""
+    if not amount:
+        return
+    key = "cost_total_bedrock" if provider == ai_extract.PROVIDER_BEDROCK else "cost_total_anthropic"
+    st.session_state[key] = st.session_state.get(key, 0.0) + amount
+    if fb_cred:
+        storage.bump_cost(fb_cred, provider, amount)
 
 
 # Apply a pending "Load from history" request before any input widget renders.
@@ -397,10 +475,22 @@ if nav == "Analyze":
                                         key=f"uploader_{st.session_state.get('uploader_ver', 0)}",
                                         help="Claude reads the statements and pre-fills the form for you to verify.")
             if st.button("Extract with Claude", disabled=not (key_present and uploaded)):
-                with st.spinner("Reading the statements with Claude…"):
+                with st.spinner("Reading locally (text/OCR) then extracting with Claude…"):
                     try:
                         src_bytes = uploaded.getvalue()
-                        raw, meta = ai_extract.extract_financials(src_bytes, uploaded.name, **ai_cfg)
+                        smart = ai_cfg.get("smart", True)
+                        if ai_cfg["provider"] == ai_extract.PROVIDER_BEDROCK:
+                            bl = ai_extract.bedrock_ladder(st.session_state.get("bedrock_models") or []) if smart else []
+                            ex_model, ex_escalate, ex_ladder = (None, True, bl) if bl else (ai_cfg.get("model"), False, None)
+                        else:
+                            ex_model, ex_escalate, ex_ladder = (None if smart else ai_cfg.get("model")), smart, None
+                        raw, meta = ai_extract.smart_extract(
+                            src_bytes, uploaded.name, provider=ai_cfg["provider"],
+                            api_key=ai_cfg.get("api_key"), aws_access_key=ai_cfg.get("aws_access_key"),
+                            aws_secret_key=ai_cfg.get("aws_secret_key"), aws_region=ai_cfg.get("aws_region"),
+                            model=ex_model, escalate=ex_escalate, ladder=ex_ladder,
+                        )
+                        track_cost(ai_cfg["provider"], meta.get("total_cost_usd") or 0.0)
                         apply_extraction(raw, meta)
                         st.session_state["source_doc"] = {"bytes": src_bytes, "name": uploaded.name}
                         st.success("Extracted. Review in Step 2 before screening.")
@@ -447,11 +537,15 @@ if nav == "Analyze":
         elif origin == "loaded":
             st.caption("Loaded manual run — no AI extraction to verify.")
         elif origin == "ai":
-            usage = (meta_ex or {}).get("usage")
-            if usage:
-                cost = meta_ex.get("cost_usd")
-                cost_str = f" · ≈ ${cost:.4f}" if cost else (" · Bedrock pricing varies" if str(meta_ex.get("model", "")).startswith("anthropic.") else "")
-                st.caption(f"Extraction cost — {usage['input_tokens']:,} in + {usage['output_tokens']:,} out tokens{cost_str} ({meta_ex.get('model', '')}).")
+            attempts = (meta_ex or {}).get("attempts") or []
+            if attempts:
+                tiers = " → ".join(a["model"].split(".")[-1] for a in attempts)
+                esc = " (escalated)" if (meta_ex or {}).get("escalated") else ""
+                in_tok = sum(a.get("input_tokens") or 0 for a in attempts)
+                out_tok = sum(a.get("output_tokens") or 0 for a in attempts)
+                total = (meta_ex or {}).get("total_cost_usd")
+                cost_str = f"≈ ${total:.4f}" if total else "cost n/a (Bedrock varies)"
+                st.caption(f"Extraction — read as **{(meta_ex or {}).get('mode', '?')}**, model **{tiers}**{esc} · {in_tok:,} in + {out_tok:,} out tokens · {cost_str}.")
             if (meta_ex or {}).get("extraction_notes"):
                 st.caption("AI notes: " + meta_ex["extraction_notes"])
             if evidence:
@@ -545,7 +639,8 @@ if nav == "Analyze":
             if fb_cred:
                 lp = st.session_state.get("loaded_provenance") or {}
                 if origin == "ai":
-                    save_prov = {"data_source": "ai", "provider": ai_cfg.get("provider", ""), "model": ai_cfg.get("model", ""),
+                    save_prov = {"data_source": "ai", "provider": ai_cfg.get("provider", ""),
+                                 "model": (meta_ex or {}).get("final_model") or ai_cfg.get("model", ""),
                                  "verified": st.session_state.get("verified_chk", False), "extraction": meta_ex or {}, "parent": None, "inherit": None}
                 elif origin == "loaded":
                     save_prov = {

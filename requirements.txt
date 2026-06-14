@@ -5,4 +5,9 @@ anthropic>=0.49
 boto3>=1.34
 reportlab>=4.1
 firebase-admin>=6.5
+pypdf>=4.0
+# OCR for scanned/image PDFs (optional — needs the `tesseract` and `poppler` binaries
+# installed; the app falls back to AI vision if they're absent).
+pytesseract>=0.3.10
+pdf2image>=1.17
 pytest>=8.0

@@ -95,10 +95,98 @@ MODEL_PRICES = {
 
 
 def estimate_cost(model: str, input_tokens: int | None, output_tokens: int | None) -> float | None:
-    price = MODEL_PRICES.get(model)
+    """Estimate USD cost. Bedrock IDs are mapped to the base model (regional
+    prices vary, so Bedrock figures are approximate)."""
+    base = model or ""
+    for pref in ("us.anthropic.", "eu.anthropic.", "apac.anthropic.", "anthropic."):
+        if base.startswith(pref):
+            base = base[len(pref):]
+            break
+    price = MODEL_PRICES.get(base)
     if not price or input_tokens is None or output_tokens is None:
         return None
     return input_tokens / 1_000_000 * price[0] + output_tokens / 1_000_000 * price[1]
+
+
+# Cheapest → most capable. Smart extraction starts low and escalates only if
+# the cheaper model didn't recover enough of the critical figures. Bedrock IDs
+# are NOT hard-coded — they vary by region/account, so the app discovers them.
+MODEL_LADDER = {
+    PROVIDER_ANTHROPIC: ["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-8"],
+}
+
+
+def list_bedrock_models(access_key=None, secret_key=None, region=None, session_token=None) -> list[str]:
+    """List Anthropic/Claude model + inference-profile IDs available in the account.
+
+    Inference profiles (e.g. ``eu.anthropic.claude-…``) are what newer models /
+    EU regions require for on-demand calls, so they're included first.
+    """
+    import boto3
+
+    kwargs = {"region_name": region or os.environ.get("AWS_REGION") or "eu-central-1"}
+    if access_key and secret_key:
+        kwargs.update(aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+        if session_token:
+            kwargs["aws_session_token"] = session_token
+    client = boto3.client("bedrock", **kwargs)
+    ids: set[str] = set()
+    try:
+        resp = client.list_inference_profiles(maxResults=100)
+        for p in resp.get("inferenceProfileSummaries", []):
+            pid = p.get("inferenceProfileId", "")
+            if "anthropic" in pid.lower():
+                ids.add(pid)
+    except Exception:
+        pass
+    try:
+        resp = client.list_foundation_models(byProvider="Anthropic")
+        for m in resp.get("modelSummaries", []):
+            mid = m.get("modelId", "")
+            if "claude" in mid.lower() and "ON_DEMAND" in (m.get("inferenceTypesSupported") or []):
+                ids.add(mid)
+    except Exception:
+        pass
+    return sorted(ids)
+
+
+def _tier_of(model_id: str) -> str:
+    m = (model_id or "").lower()
+    for t in ("haiku", "sonnet", "opus"):
+        if t in m:
+            return t
+    return "other"
+
+
+def bedrock_ladder(available: list[str]) -> list[str]:
+    """Cheapest → most-capable ladder picked from available Bedrock IDs."""
+    by_tier: dict[str, list[str]] = {"haiku": [], "sonnet": [], "opus": []}
+    for mid in available:
+        t = _tier_of(mid)
+        if t in by_tier:
+            by_tier[t].append(mid)
+    ladder = []
+    for t in ("haiku", "sonnet", "opus"):
+        if by_tier[t]:
+            # prefer region-prefixed inference profiles, then the latest version
+            picks = sorted(by_tier[t], key=lambda x: (x.startswith(("eu.", "us.", "apac.", "global.")), x))
+            ladder.append(picks[-1])
+    return ladder
+
+
+def test_connection(provider, model, *, api_key=None, aws_access_key=None, aws_secret_key=None,
+                    aws_region=None, aws_session_token=None) -> str | None:
+    """Tiny live call to verify creds+model. Returns None on success, else an error string."""
+    try:
+        client = build_client(provider, api_key=api_key, aws_access_key=aws_access_key, aws_secret_key=aws_secret_key,
+                              aws_region=aws_region, aws_session_token=aws_session_token)
+        client.messages.create(model=model, max_tokens=8, messages=[{"role": "user", "content": "ping"}])
+        return None
+    except Exception as exc:
+        return f"{type(exc).__name__}: {exc}"
+TEXT_MIN_CHARS = 280   # below this, a PDF page-set is treated as scanned/image-only
+OCR_MAX_PAGES = 40     # cap OCR work on very long scanned documents
+TEXT_CHAR_CAP = 320_000  # ~80k tokens — bounds cost on huge documents
 
 SYSTEM_PROMPT = (
     "You are a financial analyst preparing inputs for PSX/KMI Shariah screening. "
@@ -243,60 +331,116 @@ class ExtractionError(RuntimeError):
     """Raised when AI extraction cannot complete."""
 
 
-def extract_financials(
-    file_bytes: bytes,
-    filename: str,
-    *,
-    provider: str = PROVIDER_ANTHROPIC,
-    api_key: str | None = None,
-    model: str = DEFAULT_MODEL,
-    aws_access_key: str | None = None,
-    aws_secret_key: str | None = None,
-    aws_region: str | None = None,
-    aws_session_token: str | None = None,
-) -> tuple[RawFinancials, dict[str, object]]:
-    """Extract raw financials from a statement file via Claude.
+# --- local document preparation (cheap text/OCR before any AI call) ---------
+def ocr_available() -> bool:
+    try:
+        import pytesseract  # noqa
+        import pdf2image  # noqa
 
-    Works against the Anthropic API or AWS Bedrock. Returns the parsed
-    :class:`RawFinancials` plus a metadata dict (currency unit, period,
-    extraction notes) for display.
+        pytesseract.get_tesseract_version()
+        return True
+    except Exception:
+        return False
+
+
+def _pdf_text(file_bytes: bytes) -> str:
+    try:
+        import io
+
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(file_bytes))
+        return "\n".join((page.extract_text() or "") for page in reader.pages).strip()
+    except Exception:
+        return ""
+
+
+def _ocr_pdf(file_bytes: bytes) -> str:
+    try:
+        import pytesseract
+        from pdf2image import convert_from_bytes
+
+        images = convert_from_bytes(file_bytes, dpi=200, first_page=1, last_page=OCR_MAX_PAGES)
+        return "\n".join(pytesseract.image_to_string(img) for img in images).strip()
+    except Exception:
+        return ""
+
+
+def _ocr_image(file_bytes: bytes) -> str:
+    try:
+        import io
+
+        import pytesseract
+        from PIL import Image
+
+        return pytesseract.image_to_string(Image.open(io.BytesIO(file_bytes))).strip()
+    except Exception:
+        return ""
+
+
+def prepare_document(file_bytes: bytes, filename: str) -> tuple[str, object]:
+    """Return ``(mode, payload)`` choosing the cheapest viable path.
+
+    mode ∈ {'text', 'ocr', 'document', 'image'}. Text/OCR send plain text to the
+    model (few tokens, cheap); 'document'/'image' fall back to vision only when
+    no text could be recovered.
     """
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".pdf":
+        text = _pdf_text(file_bytes)
+        if len(text) >= TEXT_MIN_CHARS:
+            return "text", text
+        ocr = _ocr_pdf(file_bytes)
+        if len(ocr) >= TEXT_MIN_CHARS:
+            return "ocr", ocr
+        return "document", file_bytes
+    if suffix in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+        ocr = _ocr_image(file_bytes)
+        if len(ocr) >= TEXT_MIN_CHARS:
+            return "ocr", ocr
+        return "image", file_bytes
+    try:
+        return "text", file_bytes.decode("utf-8", "ignore")
+    except Exception:
+        return "document", file_bytes
+
+
+def _prepared_block(mode: str, payload: object, filename: str) -> dict:
+    if mode in ("text", "ocr"):
+        text = str(payload)[:TEXT_CHAR_CAP]
+        trunc = " (truncated)" if len(str(payload)) > TEXT_CHAR_CAP else ""
+        label = "OCR" if mode == "ocr" else "extracted text"
+        return {"type": "text", "text": f"FINANCIAL STATEMENT — {label}{trunc}:\n\n{text}"}
+    return _content_block(payload, filename)
+
+
+def _sufficient(raw: RawFinancials) -> bool:
+    """Did a cheaper model recover enough of the critical figures to stop?"""
+    critical = [raw.total_assets, raw.total_revenue, raw.interest_bearing_debt, raw.illiquid_assets, raw.total_liabilities]
+    return sum(1 for v in critical if v is not None) >= 4
+
+
+def _extract_once(client, model: str, content_block: dict, provider: str) -> tuple[RawFinancials, dict]:
     import anthropic
 
-    client = build_client(
-        provider,
-        api_key=api_key,
-        aws_access_key=aws_access_key,
-        aws_secret_key=aws_secret_key,
-        aws_region=aws_region,
-        aws_session_token=aws_session_token,
-    )
     try:
         response = client.messages.create(
             model=model,
-            max_tokens=8000,  # room for the flat fields + the per-field evidence array
+            max_tokens=8000,
             system=SYSTEM_PROMPT,
             tools=[EXTRACTION_TOOL],
             tool_choice={"type": "tool", "name": "report_financials"},
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        _content_block(file_bytes, filename),
-                        {"type": "text", "text": "Extract the Shariah-screening line items from this document."},
-                    ],
-                }
-            ],
+            messages=[{"role": "user", "content": [content_block, {"type": "text", "text": "Extract the Shariah-screening line items from this document."}]}],
         )
     except anthropic.AuthenticationError as exc:
         raise ExtractionError("Claude rejected the API key (authentication error).") from exc
     except anthropic.APIStatusError as exc:
         raise ExtractionError(f"Claude API error: {exc.message}") from exc
-    except anthropic.APIError as exc:  # connection/other
+    except anthropic.APIError as exc:
         raise ExtractionError(f"Could not reach the Claude API: {exc}") from exc
     except ExtractionError:
         raise
-    except Exception as exc:  # e.g. botocore credential/region errors on Bedrock
+    except Exception as exc:
         raise ExtractionError(f"Extraction failed ({type(exc).__name__}): {exc}") from exc
 
     payload = next((b.input for b in response.content if b.type == "tool_use"), None)
@@ -306,33 +450,79 @@ def extract_financials(
         payload = json.loads(payload)
 
     raw = RawFinancials(
-        company_name=payload.get("company_name") or "",
-        ticker=payload.get("ticker") or "",
-        business_compliant=bool(payload.get("business_compliant", True)),
-        business_activity=payload.get("business_activity") or "",
-        total_assets=_num(payload.get("total_assets")),
-        interest_bearing_debt=_num(payload.get("interest_bearing_debt")),
-        noncompliant_investments=_num(payload.get("noncompliant_investments")),
-        noncompliant_income=_num(payload.get("noncompliant_income")),
-        total_revenue=_num(payload.get("total_revenue")),
-        illiquid_assets=_num(payload.get("illiquid_assets")),
-        total_liabilities=_num(payload.get("total_liabilities")),
-        number_of_shares=_num(payload.get("number_of_shares")),
+        company_name=payload.get("company_name") or "", ticker=payload.get("ticker") or "",
+        business_compliant=bool(payload.get("business_compliant", True)), business_activity=payload.get("business_activity") or "",
+        total_assets=_num(payload.get("total_assets")), interest_bearing_debt=_num(payload.get("interest_bearing_debt")),
+        noncompliant_investments=_num(payload.get("noncompliant_investments")), noncompliant_income=_num(payload.get("noncompliant_income")),
+        total_revenue=_num(payload.get("total_revenue")), illiquid_assets=_num(payload.get("illiquid_assets")),
+        total_liabilities=_num(payload.get("total_liabilities")), number_of_shares=_num(payload.get("number_of_shares")),
         market_price_per_share=_num(payload.get("market_price_per_share")),
     )
     usage = getattr(response, "usage", None)
     in_tok = getattr(usage, "input_tokens", None)
     out_tok = getattr(usage, "output_tokens", None)
-    cost = estimate_cost(model, in_tok, out_tok) if provider == PROVIDER_ANTHROPIC else None
     meta = {
-        "currency_unit": payload.get("currency_unit") or "",
-        "period": payload.get("period") or "",
-        "extraction_notes": payload.get("extraction_notes") or "",
-        "model": model,
+        "currency_unit": payload.get("currency_unit") or "", "period": payload.get("period") or "",
+        "extraction_notes": payload.get("extraction_notes") or "", "model": model,
         "evidence": payload.get("evidence") or [],
         "usage": {"input_tokens": in_tok, "output_tokens": out_tok} if in_tok is not None else None,
-        "cost_usd": cost,
+        "cost_usd": estimate_cost(model, in_tok, out_tok),
     }
+    return raw, meta
+
+
+def extract_financials(
+    file_bytes: bytes, filename: str, *, provider: str = PROVIDER_ANTHROPIC, api_key: str | None = None,
+    model: str = DEFAULT_MODEL, aws_access_key: str | None = None, aws_secret_key: str | None = None,
+    aws_region: str | None = None, aws_session_token: str | None = None,
+) -> tuple[RawFinancials, dict[str, object]]:
+    """Single-model extraction (prepares the document locally first)."""
+    client = build_client(provider, api_key=api_key, aws_access_key=aws_access_key, aws_secret_key=aws_secret_key, aws_region=aws_region, aws_session_token=aws_session_token)
+    mode, payload = prepare_document(file_bytes, filename)
+    raw, meta = _extract_once(client, model, _prepared_block(mode, payload, filename), provider)
+    meta["mode"] = mode
+    return raw, meta
+
+
+def smart_extract(
+    file_bytes: bytes, filename: str, *, provider: str = PROVIDER_ANTHROPIC, api_key: str | None = None,
+    aws_access_key: str | None = None, aws_secret_key: str | None = None, aws_region: str | None = None,
+    aws_session_token: str | None = None, model: str | None = None, escalate: bool = True,
+    ladder: list[str] | None = None,
+) -> tuple[RawFinancials, dict[str, object]]:
+    """Cost-smart extraction: local text/OCR → cheapest model → escalate if needed.
+
+    If ``model`` is given, only that model is used (no escalation). ``ladder``
+    overrides the default cheap→expensive sequence (used for discovered Bedrock
+    models). Returns the parsed financials plus meta including ``mode``, per-tier
+    ``attempts``, ``total_cost_usd``, ``final_model`` and ``escalated``.
+    """
+    client = build_client(provider, api_key=api_key, aws_access_key=aws_access_key, aws_secret_key=aws_secret_key, aws_region=aws_region, aws_session_token=aws_session_token)
+    mode, payload = prepare_document(file_bytes, filename)
+    block = _prepared_block(mode, payload, filename)
+
+    if model:
+        models = [model]
+    else:
+        models = ladder or MODEL_LADDER.get(provider, [DEFAULT_MODEL])
+        if not escalate:
+            models = models[:1]
+
+    attempts: list[dict] = []
+    total_cost = 0.0
+    raw, meta, used = None, {}, models[0]
+    for m in models:
+        used = m
+        raw, meta = _extract_once(client, m, block, provider)
+        u = meta.get("usage") or {}
+        attempts.append({"model": m, "input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"), "cost_usd": meta.get("cost_usd")})
+        total_cost += meta.get("cost_usd") or 0.0
+        if _sufficient(raw):
+            break
+
+    meta = dict(meta)
+    meta.update({"mode": mode, "attempts": attempts, "total_cost_usd": total_cost,
+                 "final_model": used, "model": used, "escalated": len(attempts) > 1})
     return raw, meta
 
 

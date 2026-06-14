@@ -290,6 +290,21 @@ def test_storage_credentials_optional(monkeypatch):
     assert storage.resolve_credentials(cred) is cred
 
 
+def test_bedrock_ladder_orders_cheap_to_expensive():
+    import ai_extract
+
+    avail = [
+        "anthropic.claude-3-haiku-20240307-v1:0",
+        "eu.anthropic.claude-3-haiku-20240307-v1:0",
+        "eu.anthropic.claude-sonnet-4-6-20251114-v1:0",
+        "eu.anthropic.claude-opus-4-8-20260101-v1:0",
+        "anthropic.titan-text",  # ignored (not a Claude tier)
+    ]
+    ladder = ai_extract.bedrock_ladder(avail)
+    assert [ai_extract._tier_of(m) for m in ladder] == ["haiku", "sonnet", "opus"]
+    assert ladder[0].startswith("eu.")  # region inference profile preferred for EU
+
+
 def test_is_complete_requires_expected_artifacts():
     import storage
 

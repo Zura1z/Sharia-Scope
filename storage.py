@@ -26,6 +26,7 @@ from pathlib import Path
 
 COLLECTION = "runs"
 LOCAL_KEY_FILE = "firebase-service-account.json"
+PROVIDER_BEDROCK = "bedrock"
 
 
 class StorageError(RuntimeError):
@@ -268,6 +269,30 @@ def bucket_exists(cred_dict: dict, bucket_name: str | None = None) -> bool:
         return bool(_bucket(cred_dict, bucket_name).exists())
     except Exception:
         return False
+
+
+def bump_cost(cred_dict: dict, provider: str, amount: float) -> None:
+    """Atomically add a run's AI cost to the persistent per-provider totals."""
+    if not amount:
+        return
+    from firebase_admin import firestore
+
+    field = "bedrock_usd" if provider == PROVIDER_BEDROCK else "anthropic_usd"
+    try:
+        _firestore(cred_dict).collection("app_meta").document("cost_totals").set(
+            {field: firestore.Increment(float(amount)), "updated_at": firestore.SERVER_TIMESTAMP}, merge=True
+        )
+    except Exception:
+        pass  # cost telemetry must never block the workflow
+
+
+def read_costs(cred_dict: dict) -> dict:
+    """Return persistent cost totals ``{anthropic_usd, bedrock_usd}`` (or {})."""
+    try:
+        snap = _firestore(cred_dict).collection("app_meta").document("cost_totals").get()
+        return (snap.to_dict() or {}) if snap.exists else {}
+    except Exception:
+        return {}
 
 
 def list_runs(cred_dict: dict, limit: int = 100) -> list[dict]:
