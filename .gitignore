@@ -4,10 +4,17 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 .streamlit/secrets.toml
+.claude/
 
 # Firebase / Google service-account credentials — never commit these
 firebase-service-account.json
 *service-account*.json
 *serviceaccount*.json
 *-firebase-adminsdk-*.json
+
+# AWS / generic credential files — never commit these
+.env
+.env.*
+credentials.json
+*.pem
 
