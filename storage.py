@@ -11,8 +11,10 @@ to screen a company.
 
 Credential resolution order:
   1. a service-account JSON dict passed in (e.g. uploaded in the sidebar),
-  2. a local ``firebase-service-account.json`` file (git-ignored),
-  3. the ``GOOGLE_APPLICATION_CREDENTIALS`` env var pointing at a JSON file.
+  2. the ``FIREBASE_SERVICE_ACCOUNT`` env var holding the JSON *content* (for hosts
+     like Replit / Render where secrets are env-var strings, not files),
+  3. a local ``firebase-service-account.json`` file (git-ignored),
+  4. the ``GOOGLE_APPLICATION_CREDENTIALS`` env var pointing at a JSON file.
 """
 
 from __future__ import annotations
@@ -46,6 +48,12 @@ def resolve_credentials(cred_dict: dict | None = None, *, base_dir: str | os.Pat
     """Find a service-account credential dict, or None if none is configured."""
     if cred_dict:
         return cred_dict
+    inline_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT")
+    if inline_json:
+        try:
+            return json.loads(inline_json)
+        except json.JSONDecodeError:
+            return None
     root = Path(base_dir) if base_dir else Path.cwd()
     local = root / LOCAL_KEY_FILE
     if local.exists():

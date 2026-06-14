@@ -282,12 +282,25 @@ def test_storage_credentials_optional(monkeypatch):
     import storage
 
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.delenv("FIREBASE_SERVICE_ACCOUNT", raising=False)
     assert storage.available() in (True, False)
     # No credential configured anywhere -> None (history stays disabled, app still works).
     assert storage.resolve_credentials(None, base_dir="/nonexistent-sharia-dir") is None
     # An explicit dict is passed straight through.
     cred = {"project_id": "shariascope"}
     assert storage.resolve_credentials(cred) is cred
+
+
+def test_resolve_credentials_reads_inline_env_json(monkeypatch, tmp_path):
+    import storage
+
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    # A host like Replit supplies the key as a JSON string in an env var.
+    monkeypatch.setenv("FIREBASE_SERVICE_ACCOUNT", '{"project_id": "demo", "type": "service_account"}')
+    assert storage.resolve_credentials(None, base_dir=tmp_path) == {"project_id": "demo", "type": "service_account"}
+    # Malformed JSON returns None rather than raising.
+    monkeypatch.setenv("FIREBASE_SERVICE_ACCOUNT", "{not valid json")
+    assert storage.resolve_credentials(None, base_dir=tmp_path) is None
 
 
 def test_sufficient_escalates_on_implausible_values():

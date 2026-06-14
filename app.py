@@ -11,7 +11,9 @@ to backtest the analyzer, never as a lookup.
 from __future__ import annotations
 
 import dataclasses
+import hmac
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -81,6 +83,29 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+
+def check_password() -> None:
+    """Gate the app behind the APP_PASSWORD secret when one is set.
+
+    With no APP_PASSWORD configured the app runs open (local use). When it is set
+    — e.g. on a public Replit deploy — the user must enter it first, so strangers
+    can't run up the AI bill or reach the database.
+    """
+    expected = os.environ.get("APP_PASSWORD")
+    if not expected or st.session_state.get("password_ok"):
+        return
+    st.markdown("### 🔒 Sharia Scope")
+    entered = st.text_input("Enter password to continue", type="password")
+    if entered and hmac.compare_digest(entered, expected):
+        st.session_state["password_ok"] = True
+        st.rerun()
+    elif entered:
+        st.error("Incorrect password.")
+    st.stop()
+
+
+check_password()
 
 # --- Persistent config (NOT widget keys: dialog widget keys get wiped when the
 #     dialog closes, so the Settings dialog syncs into these on "Done"). --------

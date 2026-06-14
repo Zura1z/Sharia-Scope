@@ -45,16 +45,35 @@ Every run can be archived in full to Firebase — **inputs, computed outputs, th
 source statement (if uploaded), and the generated PDF tear-sheet**. It's entirely
 optional; without it the app is fully offline. To turn it on:
 
-1. In the Firebase console (`shariascope`), create a **Firestore database** (Native mode)
+1. In the Firebase console (your project), create a **Firestore database** (Native mode)
    and enable **Cloud Storage** (this creates the storage bucket).
 2. Project settings → Service accounts → **Generate new private key** (downloads a JSON).
-3. Drop that file in the project root as `firebase-service-account.json` (git-ignored),
-   set `GOOGLE_APPLICATION_CREDENTIALS` to its path, or upload it in the app sidebar.
+3. Make the key available one of three ways: drop the file in the project root as
+   `firebase-service-account.json` (git-ignored); set `GOOGLE_APPLICATION_CREDENTIALS`
+   to its path; or, on a host where secrets are strings, put the whole JSON in the
+   `FIREBASE_SERVICE_ACCOUNT` env var. You can also just upload it in the app sidebar.
 
 Then a **Save** button appears after each screening (metadata → Firestore, files →
 Cloud Storage), and the **Saved** tab lets you reopen any run: download its source
 statement and tear-sheet, or *Load* its inputs back into the Analyze form. If uploads
 fail, set the exact bucket name (Console → Storage) in the sidebar.
+
+## Deploying (Replit / cloud)
+
+The app reads all credentials from environment variables, so on a host like Replit
+you set them as **Secrets** — no secret ever lives in the repo:
+
+| Secret | Purpose |
+| --- | --- |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | AWS Bedrock extraction |
+| `ANTHROPIC_API_KEY` | Anthropic API extraction (alternative to Bedrock) |
+| `FIREBASE_SERVICE_ACCOUNT` | the service-account JSON content, for Save/History |
+| `APP_PASSWORD` | when set, the app requires this password before anything loads |
+
+Two host notes: bind the server to `0.0.0.0` (e.g. `--server.address 0.0.0.0`), since
+localhost can't be proxied; and **always set `APP_PASSWORD` on a public deploy** — the
+app has no per-user login and bills your AWS/Anthropic account, so the password is what
+stops strangers from running up the cost or reaching your data.
 
 ## Screening rules (PSX / KMI)
 
