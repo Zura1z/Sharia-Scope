@@ -618,6 +618,8 @@ if nav == "Analyze":
                     st.caption("Computed deterministically from the transcribed balance sheet — code classifies which liabilities are debt, not the model.")
             if (meta_ex or {}).get("debt_low_confidence"):
                 st.warning("⚠️ The transcribed liability lines don't add up to the printed subtotal, so the **interest-bearing debt figure may be off** — double-check it against the statement before relying on the verdict.")
+            if (meta_ex or {}).get("debt_method") in ("named_components", "model_aggregate") and (st.session_state.get("fin_interest_bearing_debt") or 0):
+                st.info("ℹ️ Interest-bearing debt here was taken from the AI's identified borrowings — not summed from the balance-sheet face. This happens when debt sits outside the liability section (e.g. interest-bearing directors' loans booked under equity, split from interest-free amounts only in a note). **Verify Interest-bearing debt** against the statement and its notes.")
             if (meta_ex or {}).get("share_scale_mismatch"):
                 st.warning("⚠️ The share count looked like it was read in a different unit than the balance sheet, so it was recomputed from paid-up capital ÷ face value to keep the net-liquid-assets-per-share screen consistent. Confirm **Number of shares** against the statement.")
             if (meta_ex or {}).get("extraction_notes"):

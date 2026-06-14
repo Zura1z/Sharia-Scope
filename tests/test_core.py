@@ -423,6 +423,45 @@ def test_classify_debt_returns_none_without_liability_lines():
     assert ai_extract.classify_debt_from_lines([{"label": "Cash", "amount": 5, "section": "current_asset"}]) == (None, [])
 
 
+def test_debt_falls_back_to_components_when_lines_find_none():
+    import ai_extract
+
+    # The ICC Industries case: interest-bearing directors' loans are booked under
+    # equity (so the liability lines classify to zero), but the model reported the
+    # interest-bearing portion in long_term_borrowings. A zero line sum must not
+    # override that.
+    payload = {
+        "balance_sheet_lines": [
+            {"label": "Directors Loan", "amount": 761328431, "section": "equity"},
+            {"label": "Deferred tax liability", "amount": 2364443, "section": "non_current_liability"},
+            {"label": "Trade and other payables", "amount": 119214053, "section": "current_liability"},
+        ],
+        "long_term_borrowings": 145000000,
+        "short_term_borrowings": 0,
+        "current_portion_long_term_debt": 0,
+        "interest_bearing_debt": 145000000,
+    }
+    debt, method, _lines = ai_extract._select_interest_bearing_debt(payload)
+    assert debt == 145000000 and method == "named_components"
+
+
+def test_debt_prefers_positive_line_sum_over_model_aggregate():
+    import ai_extract
+
+    # When the lines DO find debt, that deterministic figure wins even if the
+    # model's aggregate is inflated (the Dewan deferred-tax case).
+    payload = {
+        "balance_sheet_lines": [
+            {"label": "Short term borrowings", "amount": 5000, "section": "current_liability"},
+            {"label": "Deferred tax liability", "amount": 13000, "section": "non_current_liability"},
+        ],
+        "long_term_borrowings": 18000,
+        "interest_bearing_debt": 18000,  # inflated: includes deferred tax
+    }
+    debt, method, _lines = ai_extract._select_interest_bearing_debt(payload)
+    assert debt == 5000 and method == "balance_sheet_lines"
+
+
 def test_section_total_sums_equity_lines():
     import ai_extract
 

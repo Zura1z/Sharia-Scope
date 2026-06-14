@@ -637,23 +637,33 @@ def _request_extraction(client, model: str, content_block: dict) -> tuple[dict, 
 def _select_interest_bearing_debt(payload: dict) -> tuple[float | None, str, list[dict]]:
     """Choose the most reliable debt figure and report how it was found.
 
-    Order of preference: code summed from the transcribed balance-sheet lines,
-    then summed from the named debt components, then the model's own aggregate
-    (least reliable — it tends to absorb deferred tax and revaluation surplus).
-    Returns ``(debt, method_used, lines_summed)``.
+    A *positive* line sum is the most trustworthy (deterministic + footing-checked).
+    But a line sum of zero doesn't mean zero debt: interest-bearing debt can sit
+    outside the liability section — e.g. interest-bearing directors' loans booked
+    under equity, split from the interest-free part only in a note. So when the
+    lines find nothing, fall back to the figures the model read holistically (its
+    named borrowing components, then its own aggregate). Returns
+    ``(debt, method_used, lines_summed)``.
     """
     lines = payload.get("balance_sheet_lines") or []
     debt_from_lines, lines_summed = classify_debt_from_lines(lines)
-    if debt_from_lines is not None:
-        return debt_from_lines, "balance_sheet_lines", lines_summed
 
     component_fields = ("long_term_borrowings", "short_term_borrowings", "current_portion_long_term_debt")
     components = [_as_number(payload.get(field)) for field in component_fields]
     present_components = [value for value in components if value is not None]
-    if present_components:
-        return sum(present_components), "named_components", []
+    debt_from_components = sum(present_components) if present_components else None
 
-    return _as_number(payload.get("interest_bearing_debt")), "model_aggregate", []
+    model_aggregate = _as_number(payload.get("interest_bearing_debt"))
+
+    if debt_from_lines:
+        return debt_from_lines, "balance_sheet_lines", lines_summed
+    if debt_from_components:
+        return debt_from_components, "named_components", []
+    if model_aggregate:
+        return model_aggregate, "model_aggregate", []
+    if debt_from_lines is not None:
+        return debt_from_lines, "balance_sheet_lines", lines_summed
+    return None, "model_aggregate", []
 
 
 def _check_section_footing(payload: dict) -> dict:
