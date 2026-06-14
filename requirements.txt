@@ -16,3 +16,26 @@ pdf2image>=1.17
 # Live PSX market-price lookup for the net-liquid-assets screen (Yahoo Finance .KA).
 yfinance>=0.2.40
 pytest>=8.0
+anthropic>=0.49
+boto3>=1.34
+firebase-admin>=6.5
+openpyxl>=3.1
+pandas>=2.2
+pdf2image>=1.17
+pypdf>=4.0
+pytesseract>=0.3.10
+pytest>=8.0
+reportlab>=4.1
+streamlit>=1.35
+yfinance>=0.2.40
+anthropic
+boto3
+openpyxl
+pandas
+reportlab
+streamlit
+pdf2image
+pypdf
+pytesseract
+pytest
+yfinance

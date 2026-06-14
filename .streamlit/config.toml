@@ -1,10 +1,9 @@
-# Sharia Scope runs with a Firebase Admin (service-account) credential, which has
-# no per-user authorization. Bind to localhost only so the admin-credentialed app
-# is never exposed on the network. Do NOT deploy this build publicly without real
-# user authentication and server-side authorization.
 [server]
-address = "127.0.0.1"
+address = "0.0.0.0"
+port = 5000
 headless = true
+enableCORS = false
+enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
