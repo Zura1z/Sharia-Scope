@@ -60,7 +60,32 @@ EXTRACTION_TOOL = {
             "number_of_shares": dict(_NUM, description="Number of ordinary shares outstanding."),
             "market_price_per_share": dict(_NUM, description="Latest market price per share, if stated."),
             "currency_unit": {"type": ["string", "null"], "description": "e.g. 'PKR 000' or 'PKR mn'."},
-            "period": {"type": ["string", "null"], "description": "Reporting period, e.g. 'Year ended 30 June 2025'."},
+            "period": {"type": ["string", "null"], "description": "Reporting period, e.g. 'Year ended 30 June 2025' or '3rd quarter ended 31 March 2026'."},
+            "reporting_period_months": {
+                "type": ["integer", "null"],
+                "description": "How many months the INCOME statement covers: 12 for a full year, 9 for a 3rd-quarter cumulative, 6 for a half-year, 3 for a single quarter. Balance-sheet figures are point-in-time regardless.",
+            },
+            # Verbatim transcription of the statement of financial position. Code —
+            # not the model — classifies which liabilities are interest-bearing debt,
+            # so the model never has to make the judgement it keeps getting wrong.
+            "balance_sheet_lines": {
+                "type": "array",
+                "description": "EVERY line item on the statement of financial position (balance sheet), transcribed exactly as printed with its amount and section. Transcribe ALL equity and liability lines especially — do NOT classify, summarise, or skip any. Use the most recent period's column.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string", "description": "Exact line-item label as printed, e.g. 'Long term financing' or 'Deferred taxation'."},
+                        "amount": _NUM,
+                        "section": {
+                            "type": "string",
+                            "enum": ["equity", "non_current_liability", "current_liability", "non_current_asset", "current_asset"],
+                            "description": "Which balance-sheet section the line sits under.",
+                        },
+                    },
+                    "required": ["label", "amount", "section"],
+                    "additionalProperties": False,
+                },
+            },
             "extraction_notes": {"type": ["string", "null"], "description": "Caveats, assumptions, or figures that could not be found."},
             "evidence": {
                 "type": "array",
@@ -86,11 +111,87 @@ EXTRACTION_TOOL = {
             "short_term_borrowings", "current_portion_long_term_debt", "noncompliant_investments",
             "noncompliant_income", "total_revenue", "illiquid_assets",
             "total_liabilities", "total_equity", "number_of_shares", "market_price_per_share",
-            "currency_unit", "period", "extraction_notes", "evidence",
+            "currency_unit", "period", "reporting_period_months", "balance_sheet_lines",
+            "extraction_notes", "evidence",
         ],
         "additionalProperties": False,
     },
 }
+
+# --- deterministic interest-bearing-debt classification --------------------
+# The model transcribes balance-sheet lines verbatim; CODE decides which ones
+# are interest-bearing debt. This removes the single biggest source of error —
+# the model conflating deferred tax / revaluation surplus / payables with debt.
+# EXCLUDE is checked first and wins, so "accrued mark-up on borrowings" (a
+# payable) is dropped even though it contains "borrowing".
+DEBT_EXCLUDE = (
+    "payable", "deferred", "revaluation", "surplus", "provision", "unclaimed",
+    "unpaid", "dividend", "contract liabilit", "advance", "deposit", "retention",
+    "accrued", "accrual", "taxation", "tax", "gratuity", "employee benefit",
+    "compensated absences", "pension", "staff retirement", "creditor", "warranty",
+    "grant", "subsidy", "refund", "billing in excess", "due to",
+)
+DEBT_INCLUDE = (
+    "borrowing", "long term financ", "long-term financ", "short term financ",
+    "short-term financ", "term finance", "long term loan", "long-term loan",
+    "short term loan", "short-term loan", "bank loan", "running finance",
+    "running musharaka", "lease liabilit", "finance lease",
+    "liabilities against assets subject to finance lease", "ijarah", "ijara",
+    "diminishing musharak", "musharak", "sukuk", "bond", "redeemable capital",
+    "debenture", "overdraft", "term finance certificate",
+    "current portion of long term", "current portion of long-term",
+    "current maturity of long term", "current maturity of long-term",
+    "current portion of non current", "current portion of non-current",
+    "current and overdue portion", "current portion of lease",
+)
+
+
+def _classify_debt_line(label: str) -> bool:
+    """True if a balance-sheet liability label is interest-bearing debt."""
+    low = (label or "").lower()
+    if any(k in low for k in DEBT_EXCLUDE):
+        return False
+    return any(k in low for k in DEBT_INCLUDE)
+
+
+def classify_debt_from_lines(lines: list[dict]) -> tuple[float | None, list[dict]]:
+    """Sum interest-bearing debt from transcribed balance-sheet lines.
+
+    Looks only at liability sections, applies the keyword map, and returns
+    ``(total_debt, included_lines)``. Returns ``(None, [])`` when no liability
+    lines were transcribed (so the caller falls back to the model's own figure).
+    """
+    liabilities = [
+        ln for ln in (lines or [])
+        if (ln.get("section") or "") in ("non_current_liability", "current_liability")
+    ]
+    if not liabilities:
+        return None, []
+    included: list[dict] = []
+    for ln in liabilities:
+        amount = _num(ln.get("amount"))
+        if amount is None or amount == 0:
+            continue
+        if _classify_debt_line(ln.get("label") or ""):
+            included.append({"label": ln.get("label") or "", "amount": amount, "section": ln.get("section")})
+    total = sum(item["amount"] for item in included)
+    return total, included
+
+
+def _section_total(lines: list[dict], sections: tuple[str, ...]) -> float | None:
+    """Sum the amounts of all lines in the given balance-sheet sections, or None."""
+    vals = [_num(ln.get("amount")) for ln in (lines or []) if (ln.get("section") or "") in sections]
+    vals = [v for v in vals if v is not None]
+    return sum(vals) if vals else None
+
+
+def _foots(line_sum: float | None, reported: float | None, tol: float = 0.01) -> bool | None:
+    """True if a section's transcribed lines sum to its printed subtotal (within
+    1%). None when either value is missing (can't check)."""
+    if line_sum is None or reported is None or not reported:
+        return None
+    return abs(line_sum - reported) <= abs(reported) * tol
+
 
 # Published per-1M-token list prices (Anthropic first-party). Bedrock prices differ
 # by region, so cost is shown only for the first-party API.
@@ -242,6 +343,16 @@ SYSTEM_PROMPT = (
     "- NON-COMPLIANT INCOME = interest/markup income EARNED + income from non-Shariah sources (NOT "
     "finance cost, which is interest PAID). If none is disclosed and other income is immaterial, "
     "report 0 with a note.\n\n"
+    "TRANSCRIBE THE BALANCE SHEET: in 'balance_sheet_lines', copy EVERY line of the statement of "
+    "financial position exactly as printed — label, amount, and section (equity / non_current_liability "
+    "/ current_liability / non_current_asset / current_asset). Do not classify, merge, or omit lines; "
+    "the screening code reads these to decide which liabilities are interest-bearing debt, so accurate "
+    "transcription matters more than your own judgement. Put 'Surplus on revaluation' and all reserves "
+    "under 'equity'; put 'Deferred tax' and 'Trade and other payables' under their liability section "
+    "with their real labels (never relabel them as borrowings).\n"
+    "REPORTING PERIOD: set 'reporting_period_months' to how many months the income statement covers "
+    "(12 = full year, 9 = three quarters, 6 = half year, 3 = one quarter). The income ratio uses revenue "
+    "and non-compliant income from THIS SAME period.\n\n"
     "RECONCILE before finishing: Total Assets MUST equal Total Equity + Total Liabilities. If your "
     "numbers don't balance, re-read the statement of financial position and fix them."
 )
@@ -512,10 +623,38 @@ def _extract_once(client, model: str, content_block: dict, provider: str) -> tup
     if isinstance(payload, str):
         payload = json.loads(payload)
 
-    # Prefer summing the named debt components (reliable transcription) over the
-    # model's own 'interest_bearing_debt' aggregate (which conflates deferred tax).
+    # Debt classification priority, most reliable first:
+    #   1. code-classified from transcribed balance-sheet lines (model only transcribes),
+    #   2. the named debt components summed in code,
+    #   3. the model's own 'interest_bearing_debt' aggregate (conflates deferred tax — last resort).
+    lines = payload.get("balance_sheet_lines") or []
+    line_debt, debt_lines = classify_debt_from_lines(lines)
     comps = [_num(payload.get(k)) for k in ("long_term_borrowings", "short_term_borrowings", "current_portion_long_term_debt")]
-    debt = sum(c for c in comps if c is not None) if any(c is not None for c in comps) else _num(payload.get("interest_bearing_debt"))
+    comp_debt = sum(c for c in comps if c is not None) if any(c is not None for c in comps) else None
+    if line_debt is not None:
+        debt, debt_method = line_debt, "balance_sheet_lines"
+    elif comp_debt is not None:
+        debt, debt_method = comp_debt, "named_components"
+    else:
+        debt, debt_method = _num(payload.get("interest_bearing_debt")), "model_aggregate"
+
+    # Line-derived equity / liabilities back up the model's own subtotals (and the
+    # reconciliation check), since both are just sums of transcribed lines.
+    reported_equity = _num(payload.get("total_equity"))
+    reported_liab = _num(payload.get("total_liabilities"))
+    equity = reported_equity if reported_equity is not None else _section_total(lines, ("equity",))
+    total_liabilities = reported_liab if reported_liab is not None else _section_total(lines, ("non_current_liability", "current_liability"))
+
+    # Control-total ("does it foot?") check: each section's transcribed lines must
+    # sum to its printed subtotal. A mismatch means a line was mis-transcribed —
+    # e.g. Sonnet read Crescent's current-portion line as 934,928 (actually the
+    # short-term-investments figure), inflating debt by ~570K. Catching this lets
+    # the pipeline escalate or flag the debt figure as low-confidence.
+    liab_lines_sum = _section_total(lines, ("non_current_liability", "current_liability"))
+    foot_liab = _foots(liab_lines_sum, reported_liab)
+    foot_equity = _foots(_section_total(lines, ("equity",)), reported_equity)
+    foot_assets = _foots(_section_total(lines, ("non_current_asset", "current_asset")), _num(payload.get("total_assets")))
+    lines_foot = None if all(f is None for f in (foot_liab, foot_equity, foot_assets)) else not any(f is False for f in (foot_liab, foot_equity, foot_assets))
 
     raw = RawFinancials(
         company_name=payload.get("company_name") or "", ticker=payload.get("ticker") or "",
@@ -523,7 +662,7 @@ def _extract_once(client, model: str, content_block: dict, provider: str) -> tup
         total_assets=_num(payload.get("total_assets")), interest_bearing_debt=debt,
         noncompliant_investments=_num(payload.get("noncompliant_investments")), noncompliant_income=_num(payload.get("noncompliant_income")),
         total_revenue=_num(payload.get("total_revenue")), illiquid_assets=_num(payload.get("illiquid_assets")),
-        total_liabilities=_num(payload.get("total_liabilities")), number_of_shares=_num(payload.get("number_of_shares")),
+        total_liabilities=total_liabilities, number_of_shares=_num(payload.get("number_of_shares")),
         market_price_per_share=_num(payload.get("market_price_per_share")),
     )
     usage = getattr(response, "usage", None)
@@ -531,8 +670,15 @@ def _extract_once(client, model: str, content_block: dict, provider: str) -> tup
     out_tok = getattr(usage, "output_tokens", None)
     meta = {
         "currency_unit": payload.get("currency_unit") or "", "period": payload.get("period") or "",
+        "reporting_period_months": payload.get("reporting_period_months"),
         "extraction_notes": payload.get("extraction_notes") or "", "model": model,
-        "evidence": payload.get("evidence") or [], "total_equity": _num(payload.get("total_equity")),
+        "evidence": payload.get("evidence") or [], "total_equity": equity,
+        "debt_method": debt_method, "debt_lines": debt_lines,
+        "balance_sheet_lines": lines, "lines_foot": lines_foot, "foot_liabilities": foot_liab,
+        "liab_lines_sum": liab_lines_sum, "reported_total_liabilities": reported_liab,
+        # Debt from balance-sheet lines is high-confidence only when the LIABILITY
+        # section foots to its printed subtotal (that's the section debt is summed from).
+        "debt_low_confidence": bool(debt_method == "balance_sheet_lines" and foot_liab is False),
         "usage": {"input_tokens": in_tok, "output_tokens": out_tok} if in_tok is not None else None,
         "cost_usd": estimate_cost(model, in_tok, out_tok),
     }
@@ -545,6 +691,21 @@ def _reconciles(raw: RawFinancials, meta: dict) -> bool:
     if raw.total_assets and eq is not None and raw.total_liabilities is not None:
         return abs(raw.total_assets - (eq + raw.total_liabilities)) <= raw.total_assets * 0.03
     return True  # can't check → don't force escalation on this alone
+
+
+def _needs_stronger(raw: RawFinancials, model: str) -> bool:
+    """True when the cheapest tier shouldn't be trusted as the final answer.
+
+    Reconciliation can't catch a *consistent* misread — Haiku read Crescent's
+    short-term borrowings as 5.3M instead of 8.5M, yet the sheet still balanced.
+    So whenever debt is a material fraction of assets (the figure that actually
+    decides the debt screen), confirm with a stronger model. Near-debt-free
+    companies stay on the cheap model.
+    """
+    if _tier_of(model) != "haiku":
+        return False
+    ta, debt = raw.total_assets, raw.interest_bearing_debt
+    return bool(ta and debt is not None and debt > ta * 0.10)
 
 
 def extract_financials(
@@ -599,7 +760,9 @@ def smart_extract(
         u = mt.get("usage") or {}
         attempts.append({"model": m, "input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"), "cost_usd": mt.get("cost_usd")})
         total_cost += mt.get("cost_usd") or 0.0
-        if _sufficient(raw) and _reconciles(raw, meta):
+        if (_sufficient(raw) and _reconciles(raw, meta)
+                and meta.get("foot_liabilities") is not False  # liability lines must foot to their subtotal
+                and not _needs_stronger(raw, m)):
             break
 
     if raw is None:
@@ -618,3 +781,26 @@ def _num(value: object) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def period_label(months: object) -> str:
+    """Human label for an income-statement span (drives the period guard, #3)."""
+    try:
+        n = int(months)
+    except (TypeError, ValueError):
+        return ""
+    return {
+        12: "Full year (12 months)",
+        9: "Nine months (3rd-quarter cumulative)",
+        6: "Half year (6 months)",
+        3: "One quarter (3 months)",
+    }.get(n, f"{n} months")
+
+
+def is_partial_period(months: object) -> bool:
+    """True when income figures cover less than a full year (income ratio is a
+    valid same-period ratio, but worth flagging so the user knows it's partial)."""
+    try:
+        return 0 < int(months) < 12
+    except (TypeError, ValueError):
+        return False

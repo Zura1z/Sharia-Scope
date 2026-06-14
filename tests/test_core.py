@@ -356,3 +356,123 @@ def test_storage_round_trip_live():
     finally:
         storage.delete_run(cred, res["id"])
     assert all(x["id"] != res["id"] for x in storage.list_runs(cred, limit=20))
+
+
+# --- #2 deterministic debt classification from transcribed lines ------------
+CRESCENT_LINES = [
+    {"label": "Issued, subscribed and paid up share capital", "amount": 1000000, "section": "equity"},
+    {"label": "Surplus on revaluation of operating fixed assets", "amount": 8864542, "section": "equity"},
+    {"label": "Revenue reserves", "amount": 3162955, "section": "equity"},
+    {"label": "Long term financing", "amount": 345923, "section": "non_current_liability"},
+    {"label": "Deferred taxation", "amount": 820000, "section": "non_current_liability"},
+    {"label": "Trade and other payables", "amount": 3593585, "section": "current_liability"},
+    {"label": "Short term borrowings", "amount": 8555419, "section": "current_liability"},
+    {"label": "Current portion of non current liabilities", "amount": 364798, "section": "current_liability"},
+    {"label": "Unclaimed dividend", "amount": 11000, "section": "current_liability"},
+    {"label": "Provision for taxation", "amount": 120000, "section": "current_liability"},
+]
+
+
+def test_classify_debt_matches_real_crescent_lines():
+    import ai_extract
+
+    debt, included = ai_extract.classify_debt_from_lines(CRESCENT_LINES)
+    # Long term financing + short term borrowings + current portion = the true debt.
+    assert debt == 9266140
+    labels = {x["label"] for x in included}
+    assert labels == {"Long term financing", "Short term borrowings", "Current portion of non current liabilities"}
+    # 35.5% < 37% -> the debt screen passes, matching Meezan's Compliant verdict.
+    assert debt / 26071358 * 100 < 37
+
+
+def test_classify_debt_excludes_revaluation_deferred_tax_and_accruals():
+    import ai_extract
+
+    # The Dewan trap: revaluation surplus + deferred tax + payables + accrued markup
+    # must all be EXCLUDED even when mis-sectioned as liabilities.
+    lines = [
+        {"label": "Long term financing", "amount": 2000000, "section": "non_current_liability"},
+        {"label": "Surplus on revaluation of property, plant and equipment", "amount": 16000000, "section": "non_current_liability"},
+        {"label": "Deferred tax liability", "amount": 13000000, "section": "non_current_liability"},
+        {"label": "Trade and other payables", "amount": 3270000, "section": "current_liability"},
+        {"label": "Accrued markup on borrowings", "amount": 450000, "section": "current_liability"},
+        {"label": "Short term borrowings", "amount": 5000000, "section": "current_liability"},
+    ]
+    debt, _ = ai_extract.classify_debt_from_lines(lines)
+    assert debt == 7000000  # only the two real borrowing lines
+
+
+def test_classify_debt_includes_islamic_and_lease_instruments():
+    import ai_extract
+
+    lines = [
+        {"label": "Diminishing musharaka", "amount": 100, "section": "non_current_liability"},
+        {"label": "Sukuk certificates", "amount": 200, "section": "non_current_liability"},
+        {"label": "Lease liabilities", "amount": 50, "section": "non_current_liability"},
+        {"label": "Current portion of lease liabilities", "amount": 10, "section": "current_liability"},
+        {"label": "Trade deposits and accrued markup", "amount": 999, "section": "current_liability"},
+    ]
+    debt, _ = ai_extract.classify_debt_from_lines(lines)
+    assert debt == 360  # 100 + 200 + 50 + 10; the deposits/accrued line excluded
+
+
+def test_classify_debt_returns_none_without_liability_lines():
+    import ai_extract
+
+    assert ai_extract.classify_debt_from_lines([]) == (None, [])
+    assert ai_extract.classify_debt_from_lines([{"label": "Cash", "amount": 5, "section": "current_asset"}]) == (None, [])
+
+
+def test_section_total_sums_equity_lines():
+    import ai_extract
+
+    assert ai_extract._section_total(CRESCENT_LINES, ("equity",)) == 13027497
+
+
+def test_period_helpers():
+    import ai_extract
+
+    assert ai_extract.period_label(9) == "Nine months (3rd-quarter cumulative)"
+    assert ai_extract.period_label(12).startswith("Full year")
+    assert ai_extract.period_label(None) == ""
+    assert ai_extract.is_partial_period(9) is True
+    assert ai_extract.is_partial_period(12) is False
+
+
+def test_yahoo_symbol_maps_to_karachi():
+    import market_data
+
+    assert market_data.yahoo_symbol("crtm") == "CRTM.KA"
+    assert market_data.yahoo_symbol("LUCK.KA") == "LUCK.KA"
+    assert market_data.yahoo_symbol("") == ""
+
+
+def test_resolve_ticker_prefers_index_match_over_document_symbol():
+    import market_data
+
+    # A report said 'CRESTEX'; the authoritative PSX/Yahoo symbol is 'CRTM'.
+    pairs = [("CRTM", "Crescent Textile Mills Ltd"), ("LUCK", "Lucky Cement Limited")]
+    assert market_data.resolve_ticker("CRESTEX", "The Crescent Textile Mills Limited", pairs) == "CRTM"
+    # No index match -> keep the extracted ticker.
+    assert market_data.resolve_ticker("XYZ", "Unknown Co", pairs) == "XYZ"
+
+
+def test_foots_detects_non_footing_section():
+    import ai_extract
+
+    assert ai_extract._foots(100.0, 100.0) is True
+    assert ai_extract._foots(100.0, 100.4) is True   # within 1%
+    assert ai_extract._foots(106.0, 100.0) is False  # 6% off -> a line was mis-transcribed
+    assert ai_extract._foots(None, 100.0) is None     # can't check
+
+
+def test_needs_stronger_escalates_haiku_only_on_material_debt():
+    import ai_extract
+    from allshariah_core import RawFinancials
+
+    levered = RawFinancials(total_assets=1000.0, interest_bearing_debt=250.0)  # 25% of assets
+    debt_light = RawFinancials(total_assets=1000.0, interest_bearing_debt=20.0)  # 2% of assets
+    assert ai_extract._needs_stronger(levered, "eu.anthropic.claude-haiku-4-5-20251001-v1:0") is True
+    assert ai_extract._needs_stronger(debt_light, "eu.anthropic.claude-haiku-4-5-20251001-v1:0") is False
+    # A stronger tier is already the final word — never "needs stronger".
+    assert ai_extract._needs_stronger(levered, "eu.anthropic.claude-sonnet-4-6") is False

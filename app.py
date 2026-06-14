@@ -19,6 +19,7 @@ import pandas as pd
 import streamlit as st
 
 import ai_extract
+import market_data
 import storage
 from allshariah_core import (
     RawFinancials,
@@ -305,17 +306,19 @@ def apply_extraction(raw: RawFinancials, meta: dict) -> None:
     st.session_state["fin_market_price_per_share"] = raw.market_price_per_share
     st.session_state["fin_period"] = meta.get("period", "")
     st.session_state["fin_currency_unit"] = meta.get("currency_unit", "")
+    st.session_state["fin_period_months"] = meta.get("reporting_period_months")
     st.session_state["extraction_meta"] = meta
     st.session_state["from_ai"] = True
     st.session_state["verified_chk"] = False
     st.session_state["loaded_provenance"] = None
+    st.session_state.pop("price_quote", None)  # price belongs to the previous company
 
 
 def reset_analysis():
     for k in list(st.session_state.keys()):
         if k.startswith("fin_") or k in (
             "extraction_meta", "from_ai", "verified_chk", "loaded_provenance",
-            "source_doc", "last_result", "pur_shares", "pur_dps",
+            "source_doc", "last_result", "pur_shares", "pur_dps", "price_quote",
         ):
             st.session_state.pop(k, None)
     # Bump the uploader key so the file_uploader widget is reset too.
@@ -325,6 +328,22 @@ def reset_analysis():
 @st.cache_data(show_spinner=False)
 def load_index(path_str: str) -> pd.DataFrame:
     return load_data(path_str)
+
+
+@st.cache_data(show_spinner=False)
+def index_ticker_pairs() -> list[tuple[str, str]]:
+    """(ticker, company_name) pairs from the Meezan index — used to resolve a
+    document's stated symbol to the canonical PSX ticker for the price lookup."""
+    if not INDEX_CSV.exists():
+        return []
+    df = load_index(str(INDEX_CSV))
+    return [(str(t).strip(), str(n).strip()) for t, n in zip(df["ticker"], df["company_name"]) if str(t).strip()]
+
+
+@st.cache_data(show_spinner=True, ttl=900)
+def fetch_psx_price(symbol: str) -> dict | None:
+    """Cached live-price lookup (15-min TTL) so repeated screens don't re-hit Yahoo."""
+    return market_data.fetch_price(symbol)
 
 
 def build_record(raw, ratios, evaluation, meta, *, extraction=None, provider="", model="",
@@ -338,12 +357,17 @@ def build_record(raw, ratios, evaluation, meta, *, extraction=None, provider="",
         "failure_reasons": list(evaluation.failure_reasons),
         "notes": evaluation.notes,
         "period": meta.get("period", ""),
+        "reporting_period_months": meta.get("reporting_period_months"),
         "currency_unit": meta.get("currency_unit", ""),
+        "market_price_as_of": meta.get("market_price_as_of", ""),
+        "market_price_source": meta.get("market_price_source", ""),
         "data_source": data_source,
         "ai_provider": provider,
         "ai_model": model,
         "extraction_notes": extraction.get("extraction_notes", ""),
         "evidence": extraction.get("evidence") or [],
+        "debt_lines": extraction.get("debt_lines") or [],
+        "debt_method": extraction.get("debt_method", ""),
         "extraction_cost_usd": extraction.get("total_cost_usd", extraction.get("cost_usd")),
         "extraction_mode": extraction.get("mode", ""),
         "verified": bool(verified),
@@ -377,10 +401,18 @@ if "pending_load" in st.session_state:
         st.session_state[f"fin_{field}"] = rec.get(field)
     st.session_state["fin_period"] = rec.get("period", "") or ""
     st.session_state["fin_currency_unit"] = rec.get("currency_unit", "") or ""
+    st.session_state["fin_period_months"] = rec.get("reporting_period_months")
     st.session_state["source_doc"] = None
+    st.session_state["price_quote"] = (
+        {"symbol": (rec.get("ticker") or "").upper(), "price": rec.get("market_price_per_share"),
+         "as_of": rec.get("market_price_as_of", ""), "source": rec.get("market_price_source", "") or "saved run"}
+        if rec.get("market_price_as_of") else None
+    )
     st.session_state["extraction_meta"] = {
         "period": rec.get("period", ""), "currency_unit": rec.get("currency_unit", ""),
+        "reporting_period_months": rec.get("reporting_period_months"),
         "evidence": rec.get("evidence") or [], "extraction_notes": rec.get("extraction_notes", ""),
+        "debt_lines": rec.get("debt_lines") or [], "debt_method": rec.get("debt_method", ""),
         "model": rec.get("ai_model", ""), "usage": None, "cost_usd": None,
     }
     st.session_state["from_ai"] = False
@@ -508,6 +540,28 @@ if nav == "Analyze":
         p2.text_input("Reporting period", key="fin_period", placeholder="e.g. Year ended 30 Jun 2025")
         p3.text_input("Currency unit", key="fin_currency_unit", placeholder="e.g. PKR '000")
         st.caption("Enter all amounts in one consistent unit, and the share count in that same scale. Leave a field blank if unknown.")
+
+        # Live PSX market-price lookup (#1) — fills the manual price field; editable.
+        if market_data.available():
+            tkr = (st.session_state.get("fin_ticker") or "").strip()
+            fp1, fp2 = st.columns([1, 3])
+            if fp1.button("↻ Fetch live price (PSX)", disabled=not tkr, use_container_width=True,
+                          help="Looks up the latest PSX close from Yahoo Finance and fills 'Market price per share'. You can override it."):
+                sym = market_data.resolve_ticker(tkr, st.session_state.get("fin_company_name", ""), index_ticker_pairs())
+                quote = fetch_psx_price(sym)
+                st.session_state["price_quote"] = quote or {"error": sym}
+                if quote:
+                    st.session_state["fin_market_price_per_share"] = quote["price"]
+                st.rerun()
+            q = st.session_state.get("price_quote")
+            if q and not q.get("error"):
+                fp2.success(f"💹 **{q['symbol']}** = PKR {q['price']:,.2f} · as of **{q['as_of']}** ({q['source']}). "
+                            "Shown below — update it if you have a fresher price.")
+            elif q and q.get("error"):
+                fp2.warning(f"No PSX price found for **{q['error']}** on Yahoo Finance. Enter the market price manually below.")
+            elif not tkr:
+                fp2.caption("Enter a ticker to enable the live price lookup.")
+
         cols = st.columns(3)
         for i, (key, label, help_text) in enumerate(FIN_FIELDS):
             with cols[i % 3]:
@@ -546,6 +600,21 @@ if nav == "Analyze":
                 total = (meta_ex or {}).get("total_cost_usd")
                 cost_str = f"≈ ${total:.4f}" if total else "cost n/a (Bedrock varies)"
                 st.caption(f"Extraction — read as **{(meta_ex or {}).get('mode', '?')}**, model **{tiers}**{esc} · {in_tok:,} in + {out_tok:,} out tokens · {cost_str}.")
+            # Period guard (#3): income figures are a flow over this many months.
+            months = (meta_ex or {}).get("reporting_period_months")
+            plabel = ai_extract.period_label(months)
+            if plabel:
+                extra = " — the income ratio uses revenue and non-compliant income from this same period (a valid same-period ratio)." if ai_extract.is_partial_period(months) else ""
+                st.caption(f"📅 Reporting period: **{plabel}**.{extra}")
+            # Debt audit (#2): show exactly which liability lines code summed as debt.
+            dlines = (meta_ex or {}).get("debt_lines") or []
+            if dlines:
+                with st.expander(f"Interest-bearing debt — {len(dlines)} balance-sheet line(s) summed in code"):
+                    ddf = pd.DataFrame([{"Line item": d.get("label"), "Amount": d.get("amount")} for d in dlines])
+                    st.dataframe(ddf, width="stretch", hide_index=True)
+                    st.caption("Computed deterministically from the transcribed balance sheet — code classifies which liabilities are debt, not the model.")
+            if (meta_ex or {}).get("debt_low_confidence"):
+                st.warning("⚠️ The transcribed liability lines don't add up to the printed subtotal, so the **interest-bearing debt figure may be off** — double-check it against the statement before relying on the verdict.")
             if (meta_ex or {}).get("extraction_notes"):
                 st.caption("AI notes: " + meta_ex["extraction_notes"])
             if evidence:
@@ -617,7 +686,10 @@ if nav == "Analyze":
                                             "income_ratio": format_percent(income_ratio),
                                             "total_dividend": f"{total_dividend:,.2f}", "purification_amount": f"{purify:,.2f}"}
 
+            pq = st.session_state.get("price_quote") or {}
             meta = {"period": st.session_state.get("fin_period", ""), "currency_unit": st.session_state.get("fin_currency_unit", ""),
+                    "reporting_period_months": st.session_state.get("fin_period_months"),
+                    "market_price_as_of": pq.get("as_of", ""), "market_price_source": pq.get("source", "") if not pq.get("error") else "",
                     "source": "Analyzed from entered financials"}
             audit = {
                 "data_source": {"ai": "AI extraction", "manual": "manual entry", "none": "—", "loaded": f"loaded run ({prov['data_source']})"}[origin],

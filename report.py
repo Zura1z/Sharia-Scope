@@ -103,9 +103,15 @@ def build_pdf_report(
     def val(text: str):
         return Paragraph(esc(text) or "—", meta_value)
 
+    _months = {12: "Full year (12m)", 9: "Nine months (Q3)", 6: "Half year (6m)", 3: "One quarter (3m)"}
+    income_basis = _months.get(meta.get("reporting_period_months"), "")
+    price_asof = meta.get("market_price_as_of", "")
+    if price_asof:
+        price_asof = f"{price_asof} · {meta.get('market_price_source', '') or 'market'}"
     meta_rows = [
         [lbl("Review period"), val(meta.get("period", "")), lbl("Source"), val(meta.get("source", ""))],
         [lbl("Currency unit"), val(meta.get("currency_unit", "")), lbl("Generated"), val(generated_on)],
+        [lbl("Income basis"), val(income_basis), lbl("Price as of"), val(price_asof)],
     ]
     meta_table = Table(meta_rows, colWidths=[26 * mm, 56 * mm, 22 * mm, 56 * mm])
     meta_table.setStyle(
