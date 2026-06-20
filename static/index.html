@@ -184,19 +184,26 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .nav-link.active { background: var(--green-lt); color: var(--green); font-weight: 600; }
 .nav-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
 #nav-status { display: flex; gap: 6px; }
+.nav-burger { display: none; align-items: center; justify-content: center; width: 38px; height: 34px; border-radius: 8px; color: var(--ink-3); flex-shrink: 0; }
+.nav-burger:hover { background: var(--green-lt); color: var(--green); }
+.nav-link-mobileonly { display: none; }
 
-/* Mobile nav: logo + status on the top row; links become a scrollable strip below. */
+/* Mobile nav: single row (logo + status + burger); links drop down on tap. */
 @media (max-width: 720px) {
-  #topnav { height: auto; }
-  .nav-inner { flex-wrap: wrap; height: auto; padding-top: 8px; padding-bottom: 8px; row-gap: 8px; gap: 6px; }
   .nav-logo { margin-right: auto; }
   .logo-sub { display: none; }
+  .nav-burger { display: inline-flex; }
+  .nav-right > .btn-ghost { display: none; }   /* Glossary moves into the dropdown */
   .nav-links {
-    order: 3; flex: 0 0 100%; gap: 4px;
-    overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    position: absolute; top: var(--nav-h); left: 0; right: 0; z-index: 99;
+    flex-direction: column; gap: 2px; flex: none;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-lg); padding: 8px var(--app-gut) 12px;
+    display: none;
   }
-  .nav-links::-webkit-scrollbar { display: none; }
-  .nav-link { flex-shrink: 0; white-space: nowrap; }
+  #topnav.nav-open .nav-links { display: flex; }
+  .nav-link { padding: 12px; border-radius: 8px; font-size: 15px; }
+  .nav-link-mobileonly { display: block; }
 }
 .status-dot {
   display: flex; align-items: center; gap: 5px;
@@ -743,15 +750,19 @@ img.doc-real { object-fit: contain; background: var(--bg); }
         <div class="logo-sub">PSX · KMI SCREENING</div>
       </div>
     </a>
-    <div class="nav-links">
+    <div class="nav-links" id="nav-links">
       <a href="#" class="nav-link" data-nav="home"        onclick="return go('home')">Analyze</a>
       <a href="#" class="nav-link" data-nav="methodology" onclick="return go('methodology')">Methodology</a>
       <a href="#" class="nav-link" data-nav="faq"         onclick="return go('faq')">FAQ</a>
       <a href="#" class="nav-link" data-nav="runs"        onclick="return go('runs')">Saved Runs</a>
+      <a href="#" class="nav-link nav-link-mobileonly" onclick="closeNavMenu();openGlossary();return false">Glossary</a>
     </div>
     <div class="nav-right">
       <button class="btn-ghost btn-sm" onclick="openGlossary()">Glossary</button>
       <div id="nav-status"></div>
+      <button class="nav-burger" id="nav-burger" aria-label="Menu" aria-expanded="false" onclick="toggleNavMenu()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
   </div>
 </nav>
@@ -1508,7 +1519,24 @@ async function apiPrice(ticker) {
 
 
 // ── Navigation ────────────────────────────────────────────────────────────
+// ── Mobile nav dropdown ─────────────────────────────────────────────────────
+function toggleNavMenu() {
+  const nav = document.getElementById('topnav');
+  const open = nav.classList.toggle('nav-open');
+  document.getElementById('nav-burger')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeNavMenu() {
+  document.getElementById('topnav')?.classList.remove('nav-open');
+  document.getElementById('nav-burger')?.setAttribute('aria-expanded', 'false');
+}
+// Close the dropdown when tapping outside it.
+document.addEventListener('click', (e) => {
+  const nav = document.getElementById('topnav');
+  if (nav?.classList.contains('nav-open') && !nav.contains(e.target)) closeNavMenu();
+});
+
 function go(screen) {
+  closeNavMenu();   // close the mobile dropdown on navigation
   document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
   document.getElementById(`scr-${screen}`)?.classList.add('active');
   S.screen = screen;
