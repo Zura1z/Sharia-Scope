@@ -189,12 +189,14 @@ def test_business_screen_marks_nc_by_nature_without_ratios():
     assert evaluation.metric_results == []
 
 
-def test_nla_per_share_breach_is_non_compliant():
-    # NLA/share = (1000-400-300)/100 = 3; price below it should fail the screen.
+def test_nla_per_share_is_advisory_not_blocking():
+    # NLA/share = (1000-400-300)/100 = 3 > price 1. The Net Liquid Assets check is
+    # advisory (a KMI indicator), so it must NOT force non-compliant or review when
+    # the five core tests pass.
     _ratios, evaluation = screen_financials(clean_financials(market_price_per_share=1.0))
 
-    assert evaluation.status == "non_compliant"
-    assert any("Net Liquid Assets" in reason for reason in evaluation.failure_reasons)
+    assert evaluation.status == "compliant"
+    assert not any("Net Liquid Assets" in reason for reason in evaluation.failure_reasons)
 
 
 def test_missing_input_marks_review_required():

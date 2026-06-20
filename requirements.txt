@@ -15,4 +15,3 @@ pytesseract>=0.3.10
 pdf2image>=1.17
 # Live PSX market-price lookup for the net-liquid-assets screen (Yahoo Finance .KA).
 yfinance>=0.2.40
-pytest>=8.0

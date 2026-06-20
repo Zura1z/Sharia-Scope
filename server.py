@@ -77,6 +77,34 @@ def _api_key() -> str | None:
     return os.environ.get("ANTHROPIC_API_KEY")
 
 
+def _bedrock_ready() -> bool:
+    """True if AWS Bedrock is usable: explicitly opted in, or AWS creds are present."""
+    if os.environ.get("AI_PROVIDER", "").strip().lower() == ai_extract.PROVIDER_BEDROCK:
+        return True
+    aws = ai_extract.resolve_aws()
+    return bool(aws.get("aws_access_key") and aws.get("aws_secret_key"))
+
+
+def _ai_provider() -> str:
+    """Which AI provider the server should use for extraction.
+
+    Set AI_PROVIDER=bedrock to force Bedrock; otherwise Anthropic is used when an
+    Anthropic key exists, falling back to Bedrock if only AWS creds are present.
+    """
+    if os.environ.get("AI_PROVIDER", "").strip().lower() == ai_extract.PROVIDER_BEDROCK:
+        return ai_extract.PROVIDER_BEDROCK
+    if _api_key():
+        return ai_extract.PROVIDER_ANTHROPIC
+    if _bedrock_ready():
+        return ai_extract.PROVIDER_BEDROCK
+    return ai_extract.PROVIDER_ANTHROPIC
+
+
+def _ai_ready() -> bool:
+    """Server-side AI readiness — an Anthropic env key OR a configured Bedrock."""
+    return bool(_api_key()) or _bedrock_ready()
+
+
 def _fb_cred() -> dict | None:
     raw = os.environ.get("FIREBASE_SA_JSON", "").strip()
     if raw:
@@ -119,7 +147,8 @@ def _branded_name(company: str | None, ticker: str | None, suffix: str, ext: str
 def get_status() -> dict:
     fb = _fb_cred()
     return {
-        "ai_ready": bool(_api_key()),
+        "ai_ready": _ai_ready(),
+        "ai_provider": _ai_provider(),
         "storage_configured": bool(fb),
         "app_version": APP_VERSION,
         "rule_version": RULE_VERSION,
@@ -135,19 +164,29 @@ async def extract(
     file: UploadFile = File(...),
     x_anthropic_key: str | None = Header(None, alias="X-Anthropic-Key"),
 ) -> dict:
-    # Prefer the server's env key; fall back to a key the user supplied in-app.
-    # The user key is used only for this request — never logged or persisted.
-    api_key = _api_key() or (x_anthropic_key.strip() if x_anthropic_key else None)
-    if not api_key:
-        raise HTTPException(400, "No Anthropic API key available — set ANTHROPIC_API_KEY on the server or enter your own key in the app.")
+    provider = _ai_provider()
     file_bytes = await file.read()
-    try:
-        raw, meta = ai_extract.smart_extract(
-            file_bytes,
-            file.filename or "upload",
-            provider=ai_extract.PROVIDER_ANTHROPIC,
-            api_key=api_key,
+
+    if provider == ai_extract.PROVIDER_BEDROCK:
+        aws = ai_extract.resolve_aws()   # reads AWS_* from the environment
+        kwargs = dict(
+            provider=ai_extract.PROVIDER_BEDROCK,
+            aws_access_key=aws.get("aws_access_key"),
+            aws_secret_key=aws.get("aws_secret_key"),
+            aws_region=aws.get("aws_region"),
+            aws_session_token=aws.get("aws_session_token"),
+            model=os.environ.get("BEDROCK_MODEL") or ai_extract.DEFAULT_BEDROCK_MODEL,
         )
+    else:
+        # Prefer the server's env key; fall back to a key the user supplied in-app.
+        # The user key is used only for this request — never logged or persisted.
+        api_key = _api_key() or (x_anthropic_key.strip() if x_anthropic_key else None)
+        if not api_key:
+            raise HTTPException(400, "No AI key available — set ANTHROPIC_API_KEY (or AWS creds with AI_PROVIDER=bedrock) on the server, or enter your own Anthropic key in the app.")
+        kwargs = dict(provider=ai_extract.PROVIDER_ANTHROPIC, api_key=api_key)
+
+    try:
+        raw, meta = ai_extract.smart_extract(file_bytes, file.filename or "upload", **kwargs)
     except ai_extract.ExtractionError as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
