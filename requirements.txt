@@ -1,4 +1,3 @@
-streamlit>=1.35
 fastapi>=0.110
 uvicorn[standard]>=0.28
 python-multipart>=0.0.9
@@ -15,4 +14,3 @@ pytesseract>=0.3.10
 pdf2image>=1.17
 # Live PSX market-price lookup for the net-liquid-assets screen (Yahoo Finance .KA).
 yfinance>=0.2.40
-pytest>=8.0
