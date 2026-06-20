@@ -6,6 +6,9 @@ __pycache__/
 .streamlit/secrets.toml
 .claude/
 
+# Local working scratch — not part of the app
+presentation/
+
 # Firebase / Google service-account credentials — never commit these
 firebase-service-account.json
 *service-account*.json
