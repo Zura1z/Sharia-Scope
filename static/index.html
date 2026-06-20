@@ -656,6 +656,17 @@ img.doc-real { object-fit: contain; background: var(--bg); }
   font-size: 13.5px; color: var(--warn); margin-bottom: 16px;
 }
 
+/* ── In-app AI key (BYO key when no server key) ──────────────────────── */
+.aikey-card { background: var(--warn-bg); border: 1px solid #EAD9B8; border-radius: var(--r); padding: 16px 18px; margin-bottom: 24px; }
+.aikey-head { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--warn); margin-bottom: 6px; }
+.aikey-card p { font-size: 13px; color: var(--ink-3); line-height: 1.6; margin-bottom: 12px; }
+.aikey-row { display: flex; gap: 8px; }
+.aikey-row input { flex: 1; min-width: 0; }
+.aikey-row .btn { flex-shrink: 0; }
+.aikey-link { display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--green); }
+.aikey-active { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--pass); font-weight: 500; }
+@media (max-width: 560px) { .aikey-row { flex-direction: column; } .aikey-row .btn { width: 100%; } }
+
 /* ── Post-screening action cards ─────────────────────────────────────── */
 .next-steps { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; background: var(--surface); }
 .next-step-card { display: flex; align-items: center; gap: 14px; padding: 15px 18px; background: var(--surface); border: none; border-top: 1px solid var(--border); cursor: pointer; text-align: left; width: 100%; transition: background .12s; }
@@ -795,10 +806,25 @@ img.doc-real { object-fit: contain; background: var(--bg); }
     </div>
   </section>
 
-  <!-- AI key warning -->
-  <div id="home-warn" class="warn-banner" style="display:none">
-    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
-    <span>AI extraction not available — <code>ANTHROPIC_API_KEY</code> is not set on the server. You can still enter financials manually.</span>
+  <!-- AI key — shown only when the server has no env key -->
+  <div id="home-aikey" class="aikey-card" style="display:none">
+    <div id="aikey-entry">
+      <div class="aikey-head">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+        <strong>Add your Anthropic API key to enable AI extraction</strong>
+      </div>
+      <p>No key is configured on the server. Enter your own Anthropic API key to extract figures from uploaded reports. It is kept only in this browser session, sent only to this app for extraction, and never stored on the server. You can also skip this and enter the numbers manually.</p>
+      <div class="aikey-row">
+        <input id="aikey-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"
+               onkeydown="if(event.key==='Enter')saveApiKey()">
+        <button class="btn btn-primary btn-sm" onclick="saveApiKey()">Use key</button>
+      </div>
+      <a class="aikey-link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get an API key ↗</a>
+    </div>
+    <div id="aikey-active" class="aikey-active" style="display:none">
+      <span>✓ Using your Anthropic key for this session — AI extraction is enabled.</span>
+      <button class="btn-ghost btn-sm" onclick="clearApiKey()">Remove</button>
+    </div>
   </div>
 
   <!-- Action cards -->
@@ -1361,6 +1387,7 @@ let S = {
   runs: null,
   runsLoading: false,
   aiReady: false,
+  userApiKey: '',          // user-supplied Anthropic key (session only), used when no server key
   storageConfigured: false,
   priceLoading: false,
   saving: false,
@@ -1464,6 +1491,7 @@ function apiExtract(file, { onProgress, onUploadDone } = {}) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/extract');
+    if (S.userApiKey) xhr.setRequestHeader('X-Anthropic-Key', S.userApiKey);   // BYO key fallback
     if (onProgress) xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
     if (onUploadDone) xhr.upload.onload = () => onUploadDone();
     xhr.onload = () => {
@@ -1566,7 +1594,7 @@ function renderNav() {
 
   const statusEl = document.getElementById('nav-status');
   const dots = [];
-  if (S.aiReady) dots.push('<span class="status-dot ok"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>AI</span>');
+  if (_effAiReady()) dots.push('<span class="status-dot ok"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>AI</span>');
   else dots.push('<span class="status-dot off"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>AI</span>');
   if (S.storageConfigured) dots.push('<span class="status-dot ok"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Cloud</span>');
   statusEl.innerHTML = dots.join('');
@@ -1681,11 +1709,49 @@ function filterFAQ(query) {
   if (cats) cats.style.display = q ? 'none' : 'flex';
 }
 
+// AI is usable if the server has a key OR the user supplied their own.
+function _effAiReady() { return S.aiReady || !!S.userApiKey; }
+
+function _initAiKey() {
+  try { S.userApiKey = sessionStorage.getItem('shariaScope.aiKey') || ''; } catch (_) { S.userApiKey = ''; }
+}
+
+function saveApiKey() {
+  const inp = document.getElementById('aikey-input');
+  const k = (inp?.value || '').trim();
+  if (!k) { inp?.focus(); return; }
+  S.userApiKey = k;
+  try { sessionStorage.setItem('shariaScope.aiKey', k); } catch (_) {}
+  if (inp) inp.value = '';
+  renderNav();
+  renderHomeWarning();
+  showToast('API key saved for this session');
+}
+
+function clearApiKey() {
+  S.userApiKey = '';
+  try { sessionStorage.removeItem('shariaScope.aiKey'); } catch (_) {}
+  renderNav();
+  renderHomeWarning();
+  showToast('API key removed');
+}
+
 function renderHomeWarning() {
-  const el = document.getElementById('home-warn');
-  if (el) el.style.display = S.aiReady ? 'none' : 'flex';
+  const card = document.getElementById('home-aikey');
+  const entry = document.getElementById('aikey-entry');
+  const active = document.getElementById('aikey-active');
   const uz = document.getElementById('upload-zone');
-  if (uz) uz.style.opacity = S.aiReady ? '1' : '.6';
+  if (card) {
+    if (S.aiReady) {
+      card.style.display = 'none';                 // server has a key — nothing to do
+    } else {
+      card.style.display = 'block';
+      const hasUserKey = !!S.userApiKey;
+      if (entry)  entry.style.display  = hasUserKey ? 'none' : 'block';
+      if (active) active.style.display = hasUserKey ? 'flex' : 'none';
+    }
+  }
+  if (uz) uz.style.opacity = _effAiReady() ? '1' : '.6';
 }
 
 // ── File handling ─────────────────────────────────────────────────────────
@@ -1710,7 +1776,12 @@ function openAnnualReportSearch() {
 }
 
 function handleFileSelect(file) {
-  if (!S.aiReady) { showToast('AI key not configured — please enter numbers manually', 'error'); return; }
+  if (!_effAiReady()) {
+    showToast('Enter your Anthropic API key to use AI extraction — or enter the numbers manually', 'error');
+    document.getElementById('home-aikey')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('aikey-input')?.focus();
+    return;
+  }
   if (!file) return;
   S.extractFile = file;
   S.loadedRun = null;
@@ -2968,8 +3039,9 @@ function _injectFaqJsonLd() {
 
 async function init() {
   _injectFaqJsonLd();
+  _initAiKey();        // restore a user-supplied key from this browser session
   go('home');
-  await apiStatus();
+  await apiStatus();   // sets S.aiReady (env) then re-renders the key card
 }
 
 init();

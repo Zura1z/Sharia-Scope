@@ -42,7 +42,7 @@ if _ENV_FILE.exists():
         if _k not in os.environ:
             os.environ[_k] = _v
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -131,10 +131,15 @@ def get_status() -> dict:
 # ---------------------------------------------------------------------------
 
 @app.post("/api/extract")
-async def extract(file: UploadFile = File(...)) -> dict:
-    api_key = _api_key()
+async def extract(
+    file: UploadFile = File(...),
+    x_anthropic_key: str | None = Header(None, alias="X-Anthropic-Key"),
+) -> dict:
+    # Prefer the server's env key; fall back to a key the user supplied in-app.
+    # The user key is used only for this request — never logged or persisted.
+    api_key = _api_key() or (x_anthropic_key.strip() if x_anthropic_key else None)
     if not api_key:
-        raise HTTPException(400, "ANTHROPIC_API_KEY not configured on server")
+        raise HTTPException(400, "No Anthropic API key available — set ANTHROPIC_API_KEY on the server or enter your own key in the app.")
     file_bytes = await file.read()
     try:
         raw, meta = ai_extract.smart_extract(
