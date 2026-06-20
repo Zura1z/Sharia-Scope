@@ -1,0 +1,18 @@
+# Replit configuration — Sharia Scope (FastAPI + static SPA).
+# server.py binds 0.0.0.0 and reads $PORT, so the same entrypoint works for
+# both the Run button and a deployment.
+modules = ["python-3.11"]
+entrypoint = "server.py"
+run = "python3 server.py"
+
+# Dev (Run button): the app listens on $PORT (defaults to 8501); forward it to 80.
+[[ports]]
+localPort = 8501
+externalPort = 80
+
+# Production deployment (Reserved VM keeps it always-on; switch to "autoscale"
+# if you prefer scale-to-zero). Set secrets (ANTHROPIC_API_KEY, FIREBASE_SA_JSON,
+# optionally PUBLIC_BASE_URL) in the Replit "Secrets" panel, not here.
+[deployment]
+deploymentTarget = "autoscale"
+run = ["python3", "server.py"]
