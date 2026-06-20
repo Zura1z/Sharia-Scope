@@ -25,7 +25,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "uvicorn server:app --host 0.0.0.0 --port 5000"
+args = "pip install -r requirements.txt && uvicorn server:app --host 0.0.0.0 --port 5000"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
@@ -37,4 +37,5 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
+build = ["sh", "-c", "pip install -r requirements.txt"]
 run = ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "5000"]
