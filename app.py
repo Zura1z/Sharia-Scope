@@ -11,7 +11,6 @@ to backtest the analyzer, never as a lookup.
 from __future__ import annotations
 
 import dataclasses
-import hmac
 import json
 import os
 from datetime import datetime
@@ -62,50 +61,61 @@ st.set_page_config(page_title="Sharia Scope", page_icon="☪️", layout="wide")
 st.markdown(
     """
     <style>
-      #MainMenu, header [data-testid="stToolbar"], footer {visibility: hidden;}
-      .block-container {padding-top: 2.6rem; max-width: 1080px;}
-      .ss-title {font-size: 1.7rem; font-weight: 700; color: var(--text-color); margin:0; line-height:1.55; padding-top:.25rem;}
-      .ss-tag {color: var(--text-color); opacity:.7; font-size:.9rem; margin:.1rem 0 0;}
-      .ss-chip {display:inline-block; border:1px solid rgba(128,128,128,.3); border-radius:999px;
-                padding:3px 11px; font-size:.74rem; margin:2px 6px 2px 0; color:var(--text-color);}
-      .ss-chip.on  {border-color:#1a9e5f; color:#1a9e5f;}
-      .ss-chip.warn{border-color:#d39a2a; color:#d39a2a;}
-      .ss-chip.off {opacity:.6;}
-      .ss-badge {display:inline-block; color:#fff; border-radius:8px; padding:7px 16px; font-weight:700; font-size:1.05rem;}
-      .ss-card {border:1px solid rgba(128,128,128,.28); border-radius:12px; padding:14px 16px; height:100%;
-                background:var(--secondary-background-color, rgba(128,128,128,.08));}
-      .ss-card .k {font-size:.75rem; color:var(--text-color); opacity:.62; text-transform:uppercase; letter-spacing:.04em;}
-      .ss-card .v {font-size:1.25rem; font-weight:700; color:var(--text-color); margin:2px 0;}
-      .ss-card .t {font-size:.74rem; color:var(--text-color); opacity:.66;}
-      .ss-step {font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-color); opacity:.6; margin-bottom:.2rem;}
-      .ss-pass {color:#1a9e5f; font-weight:600;} .ss-fail {color:#e0574c; font-weight:600;} .ss-na {color:#d39a2a; font-weight:600;}
+      @import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+      /* ---- site chrome ---- */
+      #MainMenu, header, footer { visibility: hidden; }
+      header { display: none; }
+      .block-container { padding-top: 1.5rem !important; max-width: 1080px; }
+      html, body, [class*="css"], [class*="st-"], button, input, select, textarea {
+        font-family: 'Schibsted Grotesk', -apple-system, BlinkMacSystemFont, sans-serif !important;
+      }
+      .stApp { background-color: #F4F5F2; }
+
+      /* ---- chips ---- */
+      .ss-chip { display:inline-flex; align-items:center; gap:5px; border-radius:100px;
+                 padding:4px 12px; font-size:.73rem; font-weight:600; margin:2px 5px 2px 0;
+                 border:1px solid; line-height:1.4; }
+      .ss-chip.on   { background:#EAF3EF; color:#0C5C45; border-color:#BFE0D2; }
+      .ss-chip.warn { background:#FBF1E0; color:#8A5A12; border-color:#F0DCB0; }
+      .ss-chip.off  { background:#F1F3F0; color:#5B6B63; border-color:#D7DCD7; }
+
+      /* ---- ratio cards ---- */
+      .ss-card { background:#fff; border:1px solid #E6E9E3; border-radius:16px;
+                 padding:18px 20px; height:100%; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+      .ss-card .k { font-size:.7rem; color:#6C7B73; text-transform:uppercase;
+                    letter-spacing:.05em; font-weight:700; margin-bottom:4px; }
+      .ss-card .v { font-size:1.6rem; font-weight:600; color:#11201B; margin:4px 0 2px;
+                    font-family:'IBM Plex Mono', monospace; letter-spacing:-.02em; }
+      .ss-card .t { font-size:.73rem; color:#6C7B73; }
+
+      /* ---- verdict badge ---- */
+      .ss-badge { display:inline-block; color:#fff; border-radius:10px;
+                  padding:8px 18px; font-weight:700; font-size:1.05rem; }
+
+      /* ---- step labels ---- */
+      .ss-step { font-size:.7rem; text-transform:uppercase; letter-spacing:.07em;
+                 color:#6C7B73; font-weight:700; margin-bottom:.3rem; }
+
+      /* ---- pass / fail text ---- */
+      .ss-pass { color:#0E7A57; font-weight:700; }
+      .ss-fail { color:#B42318; font-weight:700; }
+      .ss-na   { color:#8A5A12; font-weight:600; }
+
+      /* ---- number inputs: monospace ---- */
+      div[data-testid="stNumberInput"] input { font-family:'IBM Plex Mono', monospace !important; }
+
+      /* ---- primary buttons ---- */
+      div[data-testid="stButton"] > button[kind="primary"] {
+        background: #0C5C45; border-radius: 12px; font-weight: 700;
+        border: none; padding: 10px 22px;
+      }
+      div[data-testid="stButton"] > button[kind="primary"]:hover { background: #0A4536; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 
-def check_password() -> None:
-    """Gate the app behind the APP_PASSWORD secret when one is set.
-
-    With no APP_PASSWORD configured the app runs open (local use). When it is set
-    — e.g. on a public Replit deploy — the user must enter it first, so strangers
-    can't run up the AI bill or reach the database.
-    """
-    expected = os.environ.get("APP_PASSWORD")
-    if not expected or st.session_state.get("password_ok"):
-        return
-    st.markdown("### 🔒 Sharia Scope")
-    entered = st.text_input("Enter password to continue", type="password")
-    if entered and hmac.compare_digest(entered, expected):
-        st.session_state["password_ok"] = True
-        st.rerun()
-    elif entered:
-        st.error("Incorrect password.")
-    st.stop()
-
-
-check_password()
 
 # --- Persistent config (NOT widget keys: dialog widget keys get wiped when the
 #     dialog closes, so the Settings dialog syncs into these on "Done"). --------
@@ -255,17 +265,26 @@ def settings_dialog():
 # --- Header + status strip --------------------------------------------------
 ai_cfg, key_present, fb_cred, fb_bucket, storage_ok = read_config()
 
-hcol, scol = st.columns([5, 1])
-with hcol:
-    st.markdown('<div class="ss-title">☪️ Sharia Scope</div>', unsafe_allow_html=True)
+logo_col, _, settings_col = st.columns([5, 3, 1])
+with logo_col:
     st.markdown(
-        '<div class="ss-tag">Analyze any company\'s Shariah compliance from its financial statements — '
-        "PSX/KMI (SECP-aligned) screening matrix.</div>",
+        '<div style="display:flex;align-items:center;gap:11px;padding:20px 0 6px">'
+        '<svg width="32" height="32" viewBox="0 0 32 32" fill="none">'
+        '<rect x="1" y="1" width="30" height="30" rx="8" fill="#0C5C45"/>'
+        '<rect x="6" y="6" width="20" height="20" rx="2" stroke="#3E8A72" stroke-width="1.5"/>'
+        '<rect x="6" y="6" width="20" height="20" rx="2" transform="rotate(45 16 16)" stroke="#C7A24B" stroke-width="1.5"/>'
+        '<circle cx="16" cy="16" r="3" fill="#C7A24B"/>'
+        '</svg>'
+        '<div>'
+        '<div style="font-weight:700;font-size:16px;letter-spacing:-.02em;line-height:1;color:#11201B">Sharia Scope</div>'
+        '<div style="font-size:10.5px;color:#6C7B73;font-weight:500;letter-spacing:.05em;margin-top:3px">PSX · KMI SCREENING</div>'
+        '</div></div>',
         unsafe_allow_html=True,
     )
-with scol:
+with settings_col:
     st.write("")
-    if st.button("⚙ Settings", use_container_width=True):
+    st.write("")
+    if st.button("⚙", use_container_width=True, help="Settings"):
         settings_dialog()
 
 ai_chip = '<span class="ss-chip on">AI ready</span>' if key_present else '<span class="ss-chip off">AI off — manual entry</span>'
@@ -306,13 +325,21 @@ def session_raw() -> RawFinancials:
 
 def ratio_card(label, value_str, threshold, passed):
     if passed is True:
-        verdict = '<span class="ss-pass">✓ Pass</span>'
+        badge = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#0E7A57;background:#E7F4EE;padding:5px 10px;border-radius:7px;flex:none">✓ Pass</span>'
     elif passed is False:
-        verdict = '<span class="ss-fail">✗ Fail</span>'
+        badge = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#B42318;background:#FDECE9;padding:5px 10px;border-radius:7px;flex:none">✗ Fail</span>'
     else:
-        verdict = '<span class="ss-na">— No data</span>'
-    return (f'<div class="ss-card"><div class="k">{label}</div><div class="v">{value_str}</div>'
-            f'<div class="t">{threshold} &nbsp;·&nbsp; {verdict}</div></div>')
+        badge = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#6C7B73;background:#F1F3F0;padding:5px 10px;border-radius:7px;flex:none">— No data</span>'
+    return (
+        f'<div class="ss-card">'
+        f'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">'
+        f'<span style="font-weight:700;font-size:14.5px;letter-spacing:-.01em;color:#11201B;line-height:1.3">{label}</span>'
+        f'{badge}'
+        f'</div>'
+        f'<div class="v">{value_str}</div>'
+        f'<div class="t">{threshold}</div>'
+        f'</div>'
+    )
 
 
 def apply_extraction(raw: RawFinancials, meta: dict) -> None:
@@ -525,6 +552,28 @@ if nav == "Analyze":
         reset_analysis()
         st.rerun()
 
+    if origin == "none":
+        st.markdown(
+            '<div style="position:relative;overflow:hidden;background:linear-gradient(160deg,#0C5C45 0%,#0A4536 60%,#083A2D 100%);border-radius:24px;padding:52px 44px;color:#fff;margin:8px 0 24px">'
+            '<svg style="position:absolute;right:-70px;top:-90px;opacity:.13;pointer-events:none" width="380" height="380" viewBox="0 0 200 200" fill="none" stroke="#C7A24B" stroke-width="1.1">'
+            '<rect x="40" y="40" width="120" height="120"/>'
+            '<rect x="40" y="40" width="120" height="120" transform="rotate(45 100 100)"/>'
+            '<circle cx="100" cy="100" r="60"/>'
+            '<circle cx="100" cy="100" r="84"/>'
+            '<rect x="58" y="58" width="84" height="84" transform="rotate(22.5 100 100)"/>'
+            '</svg>'
+            '<div style="position:relative;max-width:620px">'
+            '<div style="display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);border:1px solid rgba(199,162,75,.4);border-radius:100px;padding:6px 13px;font-size:12.5px;font-weight:600;letter-spacing:.02em;margin-bottom:20px">'
+            '<span style="width:6px;height:6px;border-radius:50%;background:#C7A24B;display:inline-block"></span>'
+            'A calculator, not a lookup table'
+            '</div>'
+            '<h1 style="font-size:38px;line-height:1.08;letter-spacing:-.03em;font-weight:800;margin:0 0 14px;color:#fff">Is this company<br>Shariah-compliant?</h1>'
+            '<p style="font-size:16.5px;line-height:1.55;color:#CFE3DA;margin:0">Screen <strong style="color:#fff;font-weight:700">any</strong> company against the five financial ratios used by the PSX&nbsp;KMI&nbsp;Index — from raw numbers, not a pre-approved list.</p>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
     # ---- Step 1: Source & inputs -----------------------------------------
     with st.container(border=True):
         st.markdown('<div class="ss-step">Step 1 · Source &amp; inputs</div>', unsafe_allow_html=True)
@@ -680,8 +729,20 @@ if nav == "Analyze":
                 st.warning("⚠️ This verdict uses **unverified** AI-extracted figures (draft). Confirm them in Step 2 before relying on it.")
             elif prov.get("legacy"):
                 st.caption("Loaded legacy run — original provenance and verification are unknown.")
-            st.markdown(f'<span class="ss-badge" style="background:{color}">{evaluation.status_label}</span>', unsafe_allow_html=True)
-            st.write("")
+            st.markdown(
+                f'<div style="position:relative;overflow:hidden;border-radius:20px;padding:28px 32px;color:#fff;background:{color};box-shadow:0 8px 24px rgba(0,0,0,.16);margin-bottom:12px">'
+                f'<svg style="position:absolute;right:-50px;top:-50px;opacity:.1;pointer-events:none" width="260" height="260" viewBox="0 0 200 200" fill="none" stroke="#fff" stroke-width="1.2">'
+                f'<rect x="40" y="40" width="120" height="120"/>'
+                f'<rect x="40" y="40" width="120" height="120" transform="rotate(45 100 100)"/>'
+                f'<circle cx="100" cy="100" r="60"/>'
+                f'</svg>'
+                f'<div style="position:relative">'
+                f'<div style="font-size:11px;font-weight:700;letter-spacing:.09em;opacity:.75;margin-bottom:8px">SHARIAH SCREENING RESULT</div>'
+                f'<div style="font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1">{evaluation.status_label}</div>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
             if evaluation.metric_results:
                 cards = st.columns(3)

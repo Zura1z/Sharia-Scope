@@ -1,0 +1,2931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ── SEO / AEO ──────────────────────────────────────────────────────── -->
+<title>Sharia Scope — PSX Shariah Compliance Calculator | Check Pakistani Stocks</title>
+<meta name="description" content="Free Shariah compliance calculator for the Pakistan Stock Exchange (PSX). Screen any company against the five AAOIFI / KMI tests — debt, non-compliant income and investments, illiquid assets — and calculate dividend purification. A calculator, not a lookup table.">
+<meta name="keywords" content="sharia calculator psx, shariah compliance psx, sharia check psx, sharia check pakistan, halal stocks pakistan, KMI screening, AAOIFI screening, halal investing pakistan, dividend purification, shariah stock screener">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+<meta name="author" content="Sharia Scope">
+<meta name="theme-color" content="#0C5C45">
+<link rel="canonical" href="https://sharia-scope.app/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sharia Scope">
+<meta property="og:title" content="Sharia Scope — PSX Shariah Compliance Calculator">
+<meta property="og:description" content="Screen any PSX-listed company against the five AAOIFI / KMI Shariah tests and calculate dividend purification. A calculator, not a lookup table.">
+<meta property="og:url" content="https://sharia-scope.app/">
+<meta property="og:image" content="https://sharia-scope.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Sharia Scope — Shariah compliance, calculated, not looked up.">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sharia Scope — PSX Shariah Compliance Calculator">
+<meta name="twitter:description" content="Screen any PSX-listed company against the five AAOIFI / KMI Shariah tests and calculate dividend purification.">
+<meta name="twitter:image" content="https://sharia-scope.app/og-image.png">
+
+<!-- Icons / PWA -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/favicon.svg">
+<link rel="manifest" href="/site.webmanifest">
+
+<!-- Structured data: the app itself -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Sharia Scope",
+  "alternateName": "Sharia Scope — PSX Shariah Compliance Calculator",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Web",
+  "url": "https://sharia-scope.app/",
+  "description": "A Shariah (AAOIFI / PSX-KMI) compliance calculator for Pakistan Stock Exchange companies. Computes the five screening ratios from raw financials and calculates dividend purification.",
+  "inLanguage": "en",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "featureList": [
+    "AAOIFI / PSX-KMI five-test Shariah screening",
+    "Debt, non-compliant income and investment ratios",
+    "Illiquid-assets and net-liquid-assets checks",
+    "Dividend purification calculator",
+    "AI extraction from annual reports"
+  ]
+}
+</script>
+<script>
+/* Fallback only: if this HTML is opened without the server (placeholder domain
+   still present), point canonical + og:url at the current origin. When served
+   by the app, the server has already injected the real production domain. */
+(function () {
+  try {
+    var origin = location.origin + '/';
+    var c = document.querySelector('link[rel="canonical"]');
+    if (c && c.href.indexOf('sharia-scope.app') !== -1) c.href = origin;
+    var ou = document.querySelector('meta[property="og:url"]');
+    if (ou && ou.content.indexOf('sharia-scope.app') !== -1) ou.setAttribute('content', origin);
+  } catch (e) {}
+})();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --green:        #0C5C45;
+  --green-dk:     #093D2F;
+  --green-lt:     #EAF3EF;
+  --green-bdr:    #BDD9CE;
+  --gold:         #C7A24B;
+  --gold-lt:      #FBF3E3;
+  --bg:           #F4F5F2;
+  --surface:      #FFFFFF;
+  --border:       #E3E8E4;
+  --border-2:     #CDD7D1;
+  --ink:          #11201B;
+  --ink-2:        #2D3F37;
+  --ink-3:        #4A5E55;
+  --ink-4:        #6C7B73;
+  --ink-5:        #94A299;
+  --pass:         #0E7A57;
+  --pass-bg:      #E6F5EE;
+  --fail:         #B42318;
+  --fail-bg:      #FDECE9;
+  --warn:         #7A5210;
+  --warn-bg:      #FBF1E0;
+  --r:            12px;
+  --r-sm:         8px;
+  --shadow:       0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);
+  --shadow-lg:    0 4px 24px rgba(0,0,0,.10);
+  --font:         'Schibsted Grotesk', system-ui, sans-serif;
+  --mono:         'IBM Plex Mono', monospace;
+  --nav-h:        56px;
+  --app-max:      1680px;
+  --app-gut:      clamp(24px, 4vw, 56px);
+}
+
+/* ── Reset ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: var(--font); cursor: pointer; border: none; background: none; }
+input, select, textarea {
+  font-family: var(--font);
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--border-2);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  width: 100%;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(12,92,69,.12);
+}
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ── Nav ─────────────────────────────────────────────────────────────── */
+#topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(244,245,242,.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  height: var(--nav-h);
+}
+.nav-inner {
+  max-width: var(--app-max);
+  margin: 0 auto;
+  padding: 0 var(--app-gut);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-right: 16px;
+}
+.logo-name { font-weight: 700; font-size: 15px; letter-spacing: -.02em; color: var(--ink); }
+.logo-sub  { font-size: 9.5px; color: var(--ink-4); font-weight: 600; letter-spacing: .06em; margin-top: 1px; }
+.nav-links { display: flex; gap: 2px; flex: 1; }
+.nav-link {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-3);
+  transition: background .12s, color .12s;
+}
+.nav-link:hover { background: var(--green-lt); color: var(--green); }
+.nav-link.active { background: var(--green-lt); color: var(--green); font-weight: 600; }
+.nav-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+#nav-status { display: flex; gap: 6px; }
+.status-dot {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 500; padding: 3px 9px;
+  border-radius: 20px; border: 1px solid;
+}
+.status-dot.ok  { color: var(--pass); background: var(--pass-bg); border-color: var(--green-bdr); }
+.status-dot.off { color: var(--ink-4); background: var(--bg);    border-color: var(--border); }
+.status-dot svg { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ── Page layout ─────────────────────────────────────────────────────── */
+.screen { display: none; }
+.screen.active { display: block; }
+.page { max-width: var(--app-max); margin: 0 auto; padding: 40px var(--app-gut) 80px; }
+.page-sm { max-width: 760px; margin: 0 auto; padding: 40px var(--app-gut) 80px; }
+
+/* ── Typography ──────────────────────────────────────────────────────── */
+h1 { font-size: clamp(24px, 4vw, 36px); font-weight: 700; letter-spacing: -.03em; line-height: 1.15; }
+h2 { font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+h3 { font-size: 16px; font-weight: 600; }
+.mono { font-family: var(--mono); }
+.text-4 { color: var(--ink-4); }
+.text-5 { color: var(--ink-5); }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--ink-4); text-transform: uppercase; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 18px; border-radius: var(--r-sm);
+  font-size: 14px; font-weight: 600;
+  transition: background .12s, box-shadow .12s, opacity .12s;
+  cursor: pointer; border: none;
+}
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--green); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--green-dk); box-shadow: 0 2px 8px rgba(12,92,69,.25); }
+.btn-secondary { background: var(--surface); color: var(--ink); border: 1.5px solid var(--border-2); }
+.btn-secondary:hover:not(:disabled) { background: var(--green-lt); border-color: var(--green-bdr); color: var(--green); }
+.btn-ghost { background: none; color: var(--ink-3); padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; transition: background .12s; }
+.btn-ghost:hover { background: var(--green-lt); color: var(--green); }
+.btn-lg { padding: 13px 24px; font-size: 16px; }
+.btn-sm { font-size: 13px; padding: 6px 12px; }
+.btn-danger { background: var(--fail-bg); color: var(--fail); border: 1.5px solid #f5c6c3; }
+.btn-danger:hover { background: #f9dbd9; }
+
+/* ── Cards ───────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+.card-sm { padding: 16px; border-radius: var(--r-sm); }
+
+/* ── Badges ──────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 600; letter-spacing: .01em;
+}
+.badge-pass { background: var(--pass-bg); color: var(--pass); }
+.badge-fail { background: var(--fail-bg); color: var(--fail); }
+.badge-warn { background: var(--warn-bg); color: var(--warn); }
+.badge-gold { background: var(--gold-lt); color: #7A5210; }
+.badge-neutral { background: var(--bg); color: var(--ink-4); border: 1px solid var(--border); }
+
+/* ── Form ────────────────────────────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.form-hint { font-size: 12px; color: var(--ink-5); margin-top: 2px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) {
+  .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+}
+.section-title {
+  font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink-4); margin: 28px 0 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+/* ── Hero (home) ─────────────────────────────────────────────────────── */
+.hero {
+  background: linear-gradient(145deg, var(--green-dk) 0%, var(--green) 60%, #1A7A5A 100%);
+  border-radius: 20px;
+  padding: clamp(40px, 6vw, 72px) clamp(28px, 6vw, 64px);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 32px;
+  color: #fff;
+}
+.hero-geom {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.hero-inner { position: relative; z-index: 1; max-width: 580px; }
+.hero-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(199,162,75,.18); border: 1px solid rgba(199,162,75,.35);
+  color: #e8c97a; font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  padding: 4px 12px; border-radius: 20px; margin-bottom: 18px;
+}
+.hero h1 { color: #fff; margin-bottom: 14px; }
+.hero p { color: rgba(255,255,255,.72); font-size: 16px; line-height: 1.6; margin-bottom: 28px; }
+.hero-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.hero-chip {
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18);
+  color: rgba(255,255,255,.85); border-radius: 20px;
+  font-size: 12.5px; font-weight: 500; padding: 4px 12px;
+}
+
+/* ── Upload zone ─────────────────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--green-bdr);
+  border-radius: var(--r);
+  background: var(--green-lt);
+  padding: 40px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--green);
+  background: #ddf0e8;
+}
+.upload-icon {
+  width: 48px; height: 48px; background: var(--green); border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;
+  box-shadow: 0 2px 8px rgba(12,92,69,.25);
+}
+.upload-zone h3 { font-size: 17px; margin-bottom: 6px; color: var(--ink); }
+.upload-zone p  { color: var(--ink-4); font-size: 14px; }
+#file-input { display: none; }
+
+/* ── Two-column action cards ─────────────────────────────────────────── */
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+@media (max-width: 640px) { .action-grid { grid-template-columns: 1fr; } }
+
+/* ── Data guide ──────────────────────────────────────────────────────── */
+.data-guide { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px 22px; }
+.data-guide-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+@media (max-width: 760px) { .data-guide-grid { grid-template-columns: 1fr; } }
+.data-guide-list { list-style: none; padding: 0; margin: 0; }
+.data-guide-list li { font-size: 13.5px; color: var(--ink-3); line-height: 1.6; padding-left: 18px; position: relative; margin-bottom: 10px; }
+.data-guide-list li:last-child { margin-bottom: 0; }
+.data-guide-list li::before { content: ''; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+.data-guide-list a { color: var(--green); font-weight: 600; }
+.data-guide-search label { display: block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 8px; }
+.ar-search-row { display: flex; gap: 8px; }
+.ar-search-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); font-size: 14px; font-family: var(--font); background: var(--bg); color: var(--ink); }
+.ar-search-row input:focus { outline: none; border-color: var(--green-bdr); box-shadow: 0 0 0 3px var(--green-lt); background: var(--surface); }
+.ar-search-row .btn { flex-shrink: 0; }
+.ar-query { font-size: 12px; color: var(--ink-5); margin-top: 8px; }
+.ar-query span { font-family: var(--mono); color: var(--green); font-weight: 600; }
+
+/* ── Sample cards ────────────────────────────────────────────────────── */
+.samples-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 32px; }
+@media (max-width: 700px) { .samples-grid { grid-template-columns: 1fr; } }
+.sample-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px;
+  cursor: pointer; transition: border-color .15s, box-shadow .15s;
+}
+.sample-card:hover { border-color: var(--green); box-shadow: var(--shadow); }
+.sample-ticker { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--ink-4); margin-bottom: 4px; }
+.sample-name { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+
+/* ── Tests overview ─────────────────────────────────────────────────── */
+.tests-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (max-width: 640px) { .tests-grid { grid-template-columns: 1fr; } }
+.test-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden;
+}
+.test-card-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 18px; cursor: pointer; user-select: none;
+}
+.test-card-header:hover { background: var(--bg); }
+.test-num {
+  width: 28px; height: 28px; background: var(--green-lt);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--green); flex-shrink: 0;
+}
+.test-card-body { padding: 0 18px 16px; color: var(--ink-3); font-size: 14px; display: none; }
+.test-card-body.open { display: block; }
+.test-threshold { font-family: var(--mono); font-size: 12px; color: var(--ink-4); margin-top: 6px; }
+
+/* ── Extracting screen ───────────────────────────────────────────────── */
+.extract-layout {
+  display: grid; grid-template-columns: minmax(0,1fr) 400px; gap: 32px;
+  max-width: 1280px; margin: 0 auto; padding: 8px var(--app-gut) 0; align-items: stretch;
+}
+@media (max-width: 900px) { .extract-layout { grid-template-columns: 1fr; } }
+.doc-preview {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); height: calc(100vh - 140px); min-height: 460px;
+  position: relative; overflow: hidden;
+}
+@media (max-width: 900px) { .doc-preview { height: 440px; } }
+.doc-real { width: 100%; height: 100%; border: none; display: block; }
+img.doc-real { object-fit: contain; background: var(--bg); }
+.doc-lines { padding: 28px; }
+.doc-line {
+  height: 10px; background: var(--border); border-radius: 4px; margin-bottom: 12px;
+}
+.doc-line.short { width: 60%; }
+.doc-line.med   { width: 80%; }
+.doc-line.full  { width: 100%; }
+.doc-filebadge {
+  position: absolute; bottom: 16px; right: 16px; font-family: var(--mono);
+  font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--ink-4);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px;
+}
+.scan-line {
+  position: absolute; left: 0; right: 0; height: 2px; pointer-events: none; z-index: 3;
+  background: linear-gradient(90deg, transparent, var(--green) 30%, #4DCEA7 70%, transparent);
+  animation: scanDown 2.4s ease-in-out infinite;
+  box-shadow: 0 0 14px rgba(12,92,69,.7), 0 0 28px rgba(12,92,69,.35);
+}
+@keyframes scanDown {
+  0%   { top: 4%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { top: 96%; opacity: 1; }
+  100% { top: 96%; opacity: 0; }
+}
+.doc-scan-tag {
+  position: absolute; top: 14px; left: 14px; z-index: 4; display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 600; color: var(--green);
+  background: rgba(255,255,255,.92); backdrop-filter: blur(4px);
+  border: 1px solid var(--green-bdr); border-radius: 20px; padding: 5px 12px;
+}
+.scan-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+.extract-panel {
+  display: flex; flex-direction: column; gap: 22px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 24px;
+}
+.extract-title { font-size: 17px; font-weight: 700; color: var(--ink); }
+.extract-file { display: flex; align-items: center; gap: 10px; color: var(--green); }
+.extract-fname { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.extract-fsize { font-size: 12px; color: var(--ink-5); font-family: var(--mono); }
+.progress-bar-wrap {
+  background: var(--border); border-radius: 999px; height: 6px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--green), #4DCEA7);
+  border-radius: 999px; transition: width .3s ease;
+}
+.field-list { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
+.field-item {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13px; transition: color .2s;
+}
+.field-mark { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.field-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-5); opacity: .4; animation: pulse 1.3s ease-in-out infinite; }
+.field-item.pending { color: var(--ink-5); }
+.field-item.found   { color: var(--ink-3); }
+.field-item.found .field-mark { color: var(--pass); }
+.field-item.missing { color: var(--ink-4); }
+.field-item.missing .field-mark { color: var(--gold); }
+.extract-summary {
+  font-size: 13px; color: var(--ink-3); line-height: 1.6;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px;
+}
+.extract-summary strong { color: var(--ink); }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Review screen ───────────────────────────────────────────────────── */
+.review-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+.review-meta { background: var(--gold-lt); border: 1px solid #e8d5a0; border-radius: var(--r-sm); padding: 12px 16px; margin-bottom: 20px; font-size: 13.5px; color: var(--warn); }
+
+/* ── Results screen ──────────────────────────────────────────────────── */
+.verdict-banner {
+  border-radius: var(--r);
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.verdict-banner.pass { background: linear-gradient(135deg, #083A2D 0%, var(--green) 100%); color: #fff; }
+.verdict-banner.fail { background: linear-gradient(135deg, #5C0B0B 0%, #B42318 100%); color: #fff; }
+.verdict-title { font-size: clamp(22px, 4vw, 32px); font-weight: 700; margin-bottom: 6px; }
+.verdict-sub   { font-size: 15px; opacity: .8; }
+.verdict-score {
+  font-family: var(--mono);
+  font-size: clamp(36px, 6vw, 56px);
+  font-weight: 500;
+  opacity: .25;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ratio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.ratio-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px;
+  position: relative; overflow: hidden;
+}
+.ratio-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.ratio-card.pass::before { background: var(--pass); }
+.ratio-card.fail::before { background: var(--fail); }
+.ratio-card.na::before   { background: var(--border-2); }
+.ratio-label { font-size: 12px; font-weight: 600; color: var(--ink-4); letter-spacing: .03em; text-transform: uppercase; margin-bottom: 6px; }
+.ratio-value { font-family: var(--mono); font-size: 26px; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+.ratio-value.pass { color: var(--pass); }
+.ratio-value.fail { color: var(--fail); }
+.ratio-threshold { font-size: 12px; color: var(--ink-5); margin-bottom: 8px; }
+.ratio-badge { position: absolute; top: 14px; right: 16px; }
+.ratio-meaning { font-size: 12.5px; color: var(--ink-4); line-height: 1.45; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+/* ── NLA card ────────────────────────────────────────────────────────── */
+.nla-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px 24px; margin-bottom: 24px;
+}
+.nla-compare { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.nla-fig { text-align: center; }
+.nla-num { font-family: var(--mono); font-size: 28px; font-weight: 500; }
+.nla-caption { font-size: 12px; color: var(--ink-4); margin-top: 2px; }
+
+/* ── Purification calculator ─────────────────────────────────────────── */
+.purif-card {
+  background: var(--gold-lt); border: 1px solid #e8d5a0;
+  border-radius: var(--r); padding: 20px 24px; margin-bottom: 24px;
+}
+.purif-title { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.purif-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .purif-grid { grid-template-columns: 1fr 1fr; } }
+.purif-result { margin-top: 16px; padding: 14px 16px; background: var(--surface); border-radius: var(--r-sm); }
+.purif-amount { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--warn); }
+
+/* ── Actions bar ─────────────────────────────────────────────────────── */
+.actions-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+/* ── Runs screen ─────────────────────────────────────────────────────── */
+.runs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.run-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px; cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.run-card:hover { border-color: var(--green); box-shadow: var(--shadow); }
+.run-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.run-name { font-weight: 600; font-size: 15px; }
+.run-ticker { font-family: var(--mono); font-size: 12px; color: var(--ink-4); }
+.run-date { font-size: 12px; color: var(--ink-5); }
+.run-card-footer { display: flex; align-items: center; justify-content: space-between; }
+
+/* ── Methodology screen ──────────────────────────────────────────────── */
+.method-section { margin-bottom: 32px; }
+.method-section h2 { margin-bottom: 12px; }
+.method-section p, .method-section li { color: var(--ink-3); line-height: 1.7; }
+.method-section ul { padding-left: 20px; }
+.method-section li { margin-bottom: 6px; }
+.method-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 16px; }
+.method-table th { background: var(--bg); padding: 10px 14px; text-align: left; font-weight: 600; border: 1px solid var(--border); font-size: 12px; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-4); }
+.method-table td { padding: 10px 14px; border: 1px solid var(--border); }
+.method-table tr:nth-child(even) td { background: var(--bg); }
+
+/* ── FAQ screen ──────────────────────────────────────────────────────── */
+.faq-search-wrap { position: relative; margin-bottom: 16px; }
+.faq-search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink-5); pointer-events: none; }
+.faq-search { width: 100%; padding: 12px 16px 12px 42px; border: 1px solid var(--border); border-radius: var(--r); font-size: 15px; font-family: var(--font); background: var(--surface); color: var(--ink); }
+.faq-search:focus { outline: none; border-color: var(--green-bdr); box-shadow: 0 0 0 3px var(--green-lt); }
+.faq-cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+.faq-cat-chip { font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-3); cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
+.faq-cat-chip:hover { background: var(--green-lt); color: var(--green); border-color: var(--green-bdr); }
+.faq-category { margin-bottom: 32px; scroll-margin-top: 76px; }
+.faq-category-title { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--green); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--green-lt); }
+.faq-item { border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 8px; background: var(--surface); overflow: hidden; }
+.faq-item.open { border-color: var(--green-bdr); }
+.faq-q { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 16px; cursor: pointer; font-size: 15px; font-weight: 500; color: var(--ink); background: none; border: none; font-family: var(--font); line-height: 1.4; }
+.faq-q:hover { background: var(--bg); }
+.faq-qnum { font-family: var(--mono); font-size: 11px; color: var(--green); font-weight: 600; flex-shrink: 0; min-width: 26px; }
+.faq-chevron { margin-left: auto; flex-shrink: 0; transition: transform .2s; color: var(--ink-4); }
+.faq-item.open .faq-chevron { transform: rotate(90deg); }
+.faq-a { display: none; padding: 0 16px 16px 54px; color: var(--ink-3); line-height: 1.7; font-size: 14px; }
+.faq-item.open .faq-a { display: block; }
+.faq-empty { text-align: center; color: var(--ink-4); padding: 48px 20px; }
+.faq-disclaimer { background: var(--warn-bg); border: 1px solid #EAD9B8; border-radius: var(--r); padding: 16px 18px; font-size: 13px; color: var(--warn); margin-top: 24px; line-height: 1.6; }
+
+/* ── Glossary drawer ─────────────────────────────────────────────────── */
+.drawer-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 95vw);
+  background: var(--surface); border-left: 1px solid var(--border);
+  z-index: 201; overflow-y: auto;
+  transform: translateX(100%); transition: transform .3s cubic-bezier(.32,.72,0,1);
+  box-shadow: var(--shadow-lg);
+}
+.drawer.open { transform: translateX(0); }
+.drawer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.drawer-header h2 { font-size: 18px; }
+.drawer-close { font-size: 20px; color: var(--ink-4); padding: 4px 8px; }
+.glossary-term { padding: 18px 24px; border-bottom: 1px solid var(--border); }
+.glossary-term:last-child { border-bottom: none; }
+.glossary-term-name { font-weight: 700; font-size: 15px; margin-bottom: 5px; }
+.glossary-term-def  { color: var(--ink-3); font-size: 14px; line-height: 1.6; }
+.glossary-term-src  { font-size: 12px; color: var(--ink-5); margin-top: 5px; }
+
+/* ── Misc ─────────────────────────────────────────────────────────────── */
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; background: var(--bg); color: var(--ink-4); border: 1px solid var(--border); }
+.flex-row { display: flex; align-items: center; gap: 10px; }
+.space-between { justify-content: space-between; }
+.mt-4 { margin-top: 4px; }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.mb-4  { margin-bottom: 4px; }
+.mb-8  { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+.empty-state { text-align: center; padding: 60px 24px; color: var(--ink-4); }
+.empty-state h3 { font-size: 18px; margin-bottom: 8px; color: var(--ink-3); }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-banner { background: var(--fail-bg); border: 1px solid #f5c6c3; border-radius: var(--r-sm); padding: 12px 16px; color: var(--fail); font-size: 14px; }
+.success-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--green); color: #fff; padding: 10px 20px; border-radius: 8px;
+  font-size: 14px; font-weight: 500; box-shadow: var(--shadow-lg);
+  transition: transform .3s; z-index: 300;
+}
+.success-toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── Block: "no AI key" warning ──────────────────────────────────────── */
+.warn-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--warn-bg); border: 1px solid #e8d5a0;
+  border-radius: var(--r-sm); padding: 12px 16px;
+  font-size: 13.5px; color: var(--warn); margin-bottom: 16px;
+}
+
+/* ── Post-screening action cards ─────────────────────────────────────── */
+.next-steps { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; background: var(--surface); }
+.next-step-card { display: flex; align-items: center; gap: 14px; padding: 15px 18px; background: var(--surface); border: none; border-top: 1px solid var(--border); cursor: pointer; text-align: left; width: 100%; transition: background .12s; }
+.next-step-card:first-child { border-top: none; }
+.next-step-card:hover { background: var(--bg); }
+.nsc-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--green); border: 1px solid var(--border); }
+.nsc-body { flex: 1; min-width: 0; }
+.nsc-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.nsc-sub { font-size: 12px; color: var(--ink-4); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nsc-arrow { color: var(--ink-5); flex-shrink: 0; }
+
+/* ── Document viewer panel ───────────────────────────────────────────── */
+.docs-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 24px; }
+.docs-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
+.doc-tab-btn { padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer; background: transparent; color: var(--ink-4); display: inline-flex; align-items: center; gap: 6px; transition: all .12s; }
+.doc-tab-btn:hover:not(.active) { background: var(--surface); border-color: var(--border); color: var(--ink); }
+.doc-tab-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+.docs-spacer { flex: 1; }
+.docs-viewer-frame { background: #525659; }
+.docs-iframe { width: 100%; height: 640px; border: none; display: block; }
+.docs-placeholder { display: flex; align-items: center; justify-content: center; padding: 60px 24px; color: var(--ink-4); font-size: 14px; background: var(--bg); gap: 12px; }
+/* Results two-column layout */
+.results-layout { display: grid; grid-template-columns: minmax(0,1fr) clamp(480px, 42vw, 760px); gap: 40px; max-width: var(--app-max); margin: 0 auto; padding: 40px var(--app-gut) 80px; align-items: start; }
+.results-left { min-width: 0; }
+.results-right { position: sticky; top: 64px; height: calc(100vh - 88px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.results-right .docs-toolbar { flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: nowrap; }
+.results-right .docs-viewer-frame { flex: 1; overflow: hidden; min-height: 0; }
+.results-right .docs-iframe { width: 100%; height: 100%; min-height: 400px; border: none; display: block; }
+@media (max-width: 1080px) {
+  .results-layout { grid-template-columns: 1fr; }
+  .results-right { position: static; max-height: none; }
+  .results-right .docs-iframe { height: 540px; }
+}
+/* Review two-column layout (form + source doc) */
+.review-layout { display: grid; grid-template-columns: minmax(0,1fr) clamp(440px, 38vw, 720px); gap: 40px; max-width: var(--app-max); margin: 0 auto; padding: 40px var(--app-gut) 80px; align-items: start; }
+.review-layout.no-doc { grid-template-columns: minmax(0, 820px); justify-content: center; }
+.review-main { min-width: 0; }
+.review-doc { position: sticky; top: 64px; height: calc(100vh - 88px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.review-doc .docs-toolbar { flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: nowrap; }
+.review-doc .docs-viewer-frame { flex: 1; overflow: hidden; min-height: 0; }
+.review-doc .docs-iframe { width: 100%; height: 100%; min-height: 400px; border: none; display: block; }
+.review-doc-hint { flex-shrink: 0; border-top: 1px solid var(--border); background: var(--green-lt); color: var(--green); font-size: 12px; font-weight: 500; padding: 8px 14px; display: flex; align-items: center; gap: 7px; }
+.field-missing input { border-color: var(--gold) !important; background: #FDFaef; }
+.field-flag { font-size: 11px; font-weight: 600; color: #92600A; margin-left: 6px; }
+@media (max-width: 1080px) {
+  .review-layout, .review-layout.no-doc { grid-template-columns: 1fr; justify-content: stretch; }
+  .review-doc { position: static; height: auto; order: -1; }
+  .review-doc .docs-iframe { height: 480px; }
+}
+/* Extraction details */
+.ext-toggle { display: flex; align-items: center; gap: 8px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 16px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--ink-4); margin-bottom: 8px; }
+.ext-toggle:hover { color: var(--ink); background: var(--bg); }
+.ext-toggle svg { transition: transform .2s; flex-shrink:0; }
+.ext-toggle.open svg { transform: rotate(90deg); }
+.ext-toggle .ext-badge { margin-left: auto; font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 10px; }
+.ext-details { display: none; margin-bottom: 24px; }
+.ext-details.open { display: block; }
+.conf-high { background: var(--pass-bg); color: var(--pass); }
+.conf-medium { background: #FFF8EC; color: #92600A; }
+.conf-low { background: var(--fail-bg); color: var(--fail); }
+.page-link { background: none; border: none; color: var(--green); cursor: pointer; font-size: 12px; font-family: var(--mono); padding: 0 2px; text-decoration: underline; white-space: nowrap; }
+.page-link:hover { color: var(--green-dk); }
+</style>
+</head>
+<body>
+
+<noscript>
+  <div style="max-width:760px;margin:40px auto;padding:0 24px;font-family:system-ui,sans-serif;color:#11201B;line-height:1.6">
+    <h1>Sharia Scope — PSX Shariah Compliance Calculator</h1>
+    <p>Sharia Scope is a free Shariah compliance calculator for the Pakistan Stock Exchange (PSX).
+    It screens any company against the five AAOIFI / KMI tests — business activity, debt ratio
+    (interest-bearing debt &lt; 37% of assets), non-compliant investment ratio (&lt; 33%),
+    non-compliant income ratio (&lt; 5% of revenue), and illiquid-assets ratio (&ge; 25%) — and
+    calculates the dividend purification amount. It is a calculator, not a lookup table: the verdict
+    is computed from the financial figures you provide.</p>
+    <p>This application requires JavaScript. Please enable JavaScript to screen a company.</p>
+  </div>
+</noscript>
+
+<!-- ── Nav ──────────────────────────────────────────────────────────── -->
+<nav id="topnav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo" onclick="return go('home')">
+      <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+        <rect x="1" y="1" width="30" height="30" rx="8" fill="#0C5C45"/>
+        <rect x="6" y="6" width="20" height="20" rx="2" stroke="#3E8A72" stroke-width="1.5"/>
+        <rect x="6" y="6" width="20" height="20" rx="2" transform="rotate(45 16 16)" stroke="#C7A24B" stroke-width="1.5"/>
+        <circle cx="16" cy="16" r="3" fill="#C7A24B"/>
+      </svg>
+      <div>
+        <div class="logo-name">Sharia Scope</div>
+        <div class="logo-sub">PSX · KMI SCREENING</div>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="#" class="nav-link" data-nav="home"        onclick="return go('home')">Analyze</a>
+      <a href="#" class="nav-link" data-nav="methodology" onclick="return go('methodology')">Methodology</a>
+      <a href="#" class="nav-link" data-nav="faq"         onclick="return go('faq')">FAQ</a>
+      <a href="#" class="nav-link" data-nav="runs"        onclick="return go('runs')">Saved Runs</a>
+    </div>
+    <div class="nav-right">
+      <button class="btn-ghost btn-sm" onclick="openGlossary()">Glossary</button>
+      <div id="nav-status"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Screens ───────────────────────────────────────────────────────── -->
+<main>
+
+<!-- HOME -->
+<div id="scr-home" class="screen page">
+
+  <!-- Hero -->
+  <section class="hero mb-24">
+    <svg class="hero-geom" viewBox="0 0 800 360" preserveAspectRatio="xMaxYMid slice">
+      <rect x="600" y="-60" width="280" height="280" rx="12" stroke="rgba(255,255,255,.07)" stroke-width="1.5" fill="none" transform="rotate(15 740 80)"/>
+      <rect x="630" y="-30" width="220" height="220" rx="8"  stroke="rgba(199,162,75,.12)" stroke-width="1.5" fill="none" transform="rotate(15 740 80)"/>
+      <circle cx="700" cy="180" r="80" stroke="rgba(255,255,255,.05)" stroke-width="1" fill="none"/>
+    </svg>
+    <div class="hero-inner">
+      <div class="hero-pill">
+        <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="#C7A24B"/></svg>
+        A calculator, not a lookup table
+      </div>
+      <h1>Screen any PSX company for Shariah compliance</h1>
+      <p>Upload an annual report or enter numbers manually. Instant ratio analysis against AAOIFI thresholds — no company whitelist required.</p>
+      <div class="hero-chips">
+        <span class="hero-chip">5 AAOIFI tests</span>
+        <span class="hero-chip">Purification calculator</span>
+        <span class="hero-chip">PDF tear-sheet</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI key warning -->
+  <div id="home-warn" class="warn-banner" style="display:none">
+    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+    <span>AI extraction not available — <code>ANTHROPIC_API_KEY</code> is not set on the server. You can still enter financials manually.</span>
+  </div>
+
+  <!-- Action cards -->
+  <div class="action-grid mb-24">
+    <!-- Upload -->
+    <div>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event)">
+        <div class="upload-icon">
+          <svg width="22" height="22" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+        </div>
+        <h3>Upload annual report</h3>
+        <p>PDF, image, or Excel — Claude extracts the figures</p>
+        <p class="mt-8" style="font-size:12px;color:var(--ink-5)">PDF · PNG · JPG · XLSX</p>
+      </div>
+      <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls"
+             onchange="handleFileSelect(this.files[0])">
+    </div>
+    <!-- Manual entry -->
+    <div class="card" style="display:flex;flex-direction:column;justify-content:space-between">
+      <div>
+        <div class="label mb-8">Manual entry</div>
+        <h3 style="margin-bottom:8px">Enter numbers directly</h3>
+        <p style="color:var(--ink-4);font-size:14px">Fill in the balance-sheet fields yourself — no file upload needed.</p>
+      </div>
+      <button class="btn btn-secondary mt-16" onclick="go('review')">Enter manually →</button>
+    </div>
+  </div>
+
+  <!-- Where to get the data -->
+  <div class="data-guide mb-32">
+    <div class="label mb-8">Where to get the numbers</div>
+    <div class="data-guide-grid">
+      <div>
+        <ul class="data-guide-list">
+          <li><strong>PSX financials</strong> — quarterly statements while the financial year is still in progress, and full annual accounts for completed years. <a href="https://dps.psx.com.pk/" target="_blank" rel="noopener">dps.psx.com.pk ↗</a></li>
+          <li><strong>Best source — the company's annual report.</strong> Search for it on the right, open the official PDF, then upload it above. The annual report has every figure these tests need.</li>
+        </ul>
+      </div>
+      <div class="data-guide-search">
+        <label for="ar-search">Find a company's annual report</label>
+        <div class="ar-search-row">
+          <input id="ar-search" type="text" placeholder="e.g. Fauji Fertilizer" autocomplete="off"
+                 oninput="updateAnnualQuery()" onkeydown="if(event.key==='Enter')openAnnualReportSearch()">
+          <button class="btn btn-primary btn-sm" onclick="openAnnualReportSearch()">
+            Search
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left:2px"><path d="M7 17L17 7M17 7H8M17 7v9"/></svg>
+          </button>
+        </div>
+        <div class="ar-query" id="ar-query-preview">Opens Google in a new tab for: <span>—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sample companies -->
+  <div class="label mb-8">Try a sample</div>
+  <div class="samples-grid mb-32">
+    <div class="sample-card" onclick="loadSample('engro')">
+      <div class="sample-ticker">ENGRO · KMI-30</div>
+      <div class="sample-name">Engro Corporation</div>
+      <div class="flex-row mt-4">
+        <span class="badge badge-pass">Expected: Compliant</span>
+      </div>
+    </div>
+    <div class="sample-card" onclick="loadSample('pioc')">
+      <div class="sample-ticker">PIOC · KMI-30</div>
+      <div class="sample-name">Pioneer Cement</div>
+      <div class="flex-row mt-4">
+        <span class="badge badge-fail">Expected: Fails debt</span>
+      </div>
+    </div>
+    <div class="sample-card" onclick="loadSample('hbl')">
+      <div class="sample-ticker">HBL · Banking</div>
+      <div class="sample-name">Habib Bank Limited</div>
+      <div class="flex-row mt-4">
+        <span class="badge badge-fail">Expected: Blocked</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 tests overview -->
+  <div class="label mb-8">The five screening tests</div>
+  <div class="tests-grid">
+    <div class="test-card">
+      <div class="test-card-header" onclick="toggleTest(this)">
+        <div class="test-num">1</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">Business activity</div>
+          <div style="font-size:12px;color:var(--ink-5)">Core operations must be halal</div>
+        </div>
+        <svg style="margin-left:auto;color:var(--ink-5)" width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="test-card-body">
+        The company's primary revenue must come from Shariah-permissible activities. Banks, conventional insurance firms, alcohol, tobacco, weapons, and adult entertainment companies are blocked outright.
+        <div class="test-threshold">Threshold: Binary (block / allow)</div>
+      </div>
+    </div>
+    <div class="test-card">
+      <div class="test-card-header" onclick="toggleTest(this)">
+        <div class="test-num">2</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">Debt ratio</div>
+          <div style="font-size:12px;color:var(--ink-5)">Interest-bearing debt to total assets</div>
+        </div>
+        <svg style="margin-left:auto;color:var(--ink-5)" width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="test-card-body">
+        Measures the proportion of financing from Riba-based (interest-bearing) sources. High debt ratios indicate heavy reliance on conventional finance which violates Islamic principles.
+        <div class="test-threshold">Threshold: Interest-bearing debt / Total assets &lt; 37%</div>
+      </div>
+    </div>
+    <div class="test-card">
+      <div class="test-card-header" onclick="toggleTest(this)">
+        <div class="test-num">3</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">Investment ratio</div>
+          <div style="font-size:12px;color:var(--ink-5)">Non-compliant investments to total assets</div>
+        </div>
+        <svg style="margin-left:auto;color:var(--ink-5)" width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="test-card-body">
+        Investments in non-compliant enterprises (conventional banks, haram industries) must stay below the threshold. This includes equity holdings in prohibited companies.
+        <div class="test-threshold">Threshold: NC investments / Total assets &lt; 33%</div>
+      </div>
+    </div>
+    <div class="test-card">
+      <div class="test-card-header" onclick="toggleTest(this)">
+        <div class="test-num">4</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">Income ratio</div>
+          <div style="font-size:12px;color:var(--ink-5)">Non-compliant income to total revenue</div>
+        </div>
+        <svg style="margin-left:auto;color:var(--ink-5)" width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="test-card-body">
+        Interest income, late-payment charges, and other Riba-tainted income as a proportion of revenue. Compliant companies must give this income to charity (purification). This is what the purification calculator computes.
+        <div class="test-threshold">Threshold: NC income / Total revenue &lt; 5%</div>
+      </div>
+    </div>
+    <div class="test-card" style="grid-column: 1 / -1">
+      <div class="test-card-header" onclick="toggleTest(this)">
+        <div class="test-num">5</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">Illiquid assets ratio</div>
+          <div style="font-size:12px;color:var(--ink-5)">Tangible assets must exceed one-quarter of total assets</div>
+        </div>
+        <svg style="margin-left:auto;color:var(--ink-5)" width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="test-card-body">
+        Ensures the company has a sufficient base of tangible, illiquid assets (property, plant, equipment, inventories). Predominantly liquid companies resemble money-trading (Bai al-dayn) and must pass the net-liquid-assets per share test instead.
+        <div class="test-threshold">Threshold: Illiquid assets / Total assets ≥ 25%</div>
+      </div>
+    </div>
+  </div>
+</div><!-- /home -->
+
+<!-- EXTRACTING -->
+<div id="scr-extracting" class="screen" style="padding-top:28px">
+  <div id="extract-content"></div>
+</div>
+
+<!-- REVIEW -->
+<div id="scr-review" class="screen">
+ <div class="review-layout no-doc" id="review-layout">
+  <div class="review-main">
+  <div class="review-header">
+    <button class="btn btn-secondary btn-sm" onclick="go('home')">← Back</button>
+    <div>
+      <h2>Review extracted data</h2>
+      <p class="text-4" style="font-size:14px">Edit any field before running the screening</p>
+    </div>
+  </div>
+
+  <div id="review-meta-banner" class="review-meta" style="display:none"></div>
+
+  <div class="card">
+    <div class="section-title">Company</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="fi-company_name">Company name</label>
+        <input id="fi-company_name" type="text" placeholder="e.g. Engro Corporation">
+      </div>
+      <div class="form-group">
+        <label for="fi-ticker">Ticker</label>
+        <input id="fi-ticker" type="text" placeholder="e.g. ENGRO" style="text-transform:uppercase">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label for="fi-business_activity">Business activity</label>
+        <input id="fi-business_activity" type="text" placeholder="e.g. Fertilizer, chemicals & energy">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Core business — Shariah compliant?</label>
+        <div class="flex-row mt-4" style="gap:16px">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-weight:400">
+            <input type="radio" name="biz_compliant" value="yes" checked> Yes — halal core business
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-weight:400">
+            <input type="radio" name="biz_compliant" value="no"> No — blocked (Riba / haram)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Financials</div>
+    <p style="font-size:13px;color:var(--ink-4);margin-bottom:14px">Enter all amounts in the same unit (PKR thousands, millions, etc.). The unit cancels out — only ratios matter.</p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="fi-total_assets">Total assets</label>
+        <input id="fi-total_assets" type="number" min="0" step="any" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label for="fi-total_liabilities">Total liabilities</label>
+        <input id="fi-total_liabilities" type="number" min="0" step="any" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label for="fi-interest_bearing_debt">Interest-bearing debt</label>
+        <input id="fi-interest_bearing_debt" type="number" min="0" step="any" placeholder="0">
+        <span class="form-hint">Bank loans, bonds, finance lease liabilities</span>
+      </div>
+      <div class="form-group">
+        <label for="fi-noncompliant_investments">Non-compliant investments</label>
+        <input id="fi-noncompliant_investments" type="number" min="0" step="any" placeholder="0">
+        <span class="form-hint">Equity holdings in conventional banks / haram sectors</span>
+      </div>
+      <div class="form-group">
+        <label for="fi-noncompliant_income">Non-compliant income</label>
+        <input id="fi-noncompliant_income" type="number" min="0" step="any" placeholder="0">
+        <span class="form-hint">Interest income, late-payment penalties</span>
+      </div>
+      <div class="form-group">
+        <label for="fi-total_revenue">Total revenue</label>
+        <input id="fi-total_revenue" type="number" min="0" step="any" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label for="fi-illiquid_assets">Illiquid assets</label>
+        <input id="fi-illiquid_assets" type="number" min="0" step="any" placeholder="0">
+        <span class="form-hint">PPE, intangibles, inventory, long-term investments</span>
+      </div>
+      <div class="form-group">
+        <!-- spacer -->
+      </div>
+    </div>
+
+    <div class="section-title">Shares & price (optional)</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="fi-number_of_shares">Shares outstanding</label>
+        <input id="fi-number_of_shares" type="number" min="0" step="any" placeholder="0">
+        <span class="form-hint">In the same unit as other amounts, or plain count</span>
+      </div>
+      <div class="form-group">
+        <label for="fi-market_price_per_share">Market price per share (PKR)</label>
+        <input id="fi-market_price_per_share" type="number" min="0" step="any" placeholder="Leave blank to skip">
+        <button type="button" class="btn btn-ghost btn-sm mt-4" id="btn-fetch-price" onclick="fetchLivePrice()">
+          Fetch live PSX price
+        </button>
+      </div>
+    </div>
+
+    <div class="section-title">Report metadata</div>
+    <div class="form-grid-3">
+      <div class="form-group">
+        <label for="fi-period">Reporting period</label>
+        <input id="fi-period" type="text" placeholder="e.g. Year ended 31 Dec 2024">
+      </div>
+      <div class="form-group">
+        <label for="fi-currency_unit">Currency / unit</label>
+        <input id="fi-currency_unit" type="text" placeholder="e.g. PKR millions">
+      </div>
+      <div class="form-group">
+        <label for="fi-data_source">Source</label>
+        <input id="fi-data_source" type="text" placeholder="e.g. Annual report PDF">
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-row mt-24" style="gap:12px;justify-content:flex-end">
+    <button class="btn btn-secondary" onclick="go('home')">Cancel</button>
+    <button class="btn btn-primary btn-lg" id="run-btn" onclick="runScreening()">
+      Run Shariah screening →
+    </button>
+  </div>
+  </div><!-- /review-main -->
+
+  <!-- Source document preview (shown when a file was uploaded) -->
+  <aside class="review-doc" id="review-doc-panel" style="display:none">
+    <div class="docs-toolbar">
+      <span class="doc-tab-btn active" style="cursor:default">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 22h14a2 2 0 002-2V7.5L14.5 2H6a2 2 0 00-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10M2 19h6"/></svg>
+        <span id="review-doc-label">Source document</span>
+      </span>
+      <span class="docs-spacer"></span>
+      <button class="btn btn-secondary btn-sm" onclick="openCurrentDocTab('review-doc-wrap')" title="Open full-size in a new tab">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/></svg>
+        Open
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="downloadSourceDoc()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Download
+      </button>
+    </div>
+    <div id="review-doc-wrap" class="docs-viewer-frame">
+      <div class="docs-placeholder"><div class="spinner"></div><span>Loading…</span></div>
+    </div>
+    <div class="review-doc-hint" id="review-doc-hint" style="display:none">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <span id="review-doc-hint-text">Some figures are missing — find them in the document and fill them in below.</span>
+    </div>
+  </aside>
+ </div><!-- /review-layout -->
+</div><!-- /review -->
+
+<!-- RESULTS -->
+<div id="scr-results" class="screen">
+  <div class="results-layout">
+    <!-- Left: screening details -->
+    <div class="results-left">
+      <div id="res-content"></div>
+    </div>
+    <!-- Right: document viewer (sticky sidebar) -->
+    <div class="results-right" id="docs-panel">
+      <div class="docs-toolbar">
+        <button id="docs-tab-report" class="doc-tab-btn active" onclick="switchDoc('report')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Report
+        </button>
+        <button id="docs-tab-source" class="doc-tab-btn" style="display:none" onclick="switchDoc('source')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 22h14a2 2 0 002-2V7.5L14.5 2H6a2 2 0 00-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10M2 19h6"/></svg>
+          <span id="docs-tab-source-label">Source</span>
+        </button>
+        <span class="docs-spacer"></span>
+        <button class="btn btn-secondary btn-sm" onclick="openCurrentDocTab('docs-frame-wrap')" title="Open full-size in a new tab">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/></svg>
+          Open
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="downloadCurrentDoc()">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download
+        </button>
+      </div>
+      <div id="docs-frame-wrap" class="docs-viewer-frame">
+        <div class="docs-placeholder">
+          <div class="spinner"></div><span>Loading…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- METHODOLOGY -->
+<div id="scr-methodology" class="screen page-sm">
+  <h1 class="mb-24">Screening Methodology</h1>
+
+  <div class="method-section">
+    <h2>Overview</h2>
+    <p>Sharia Scope applies the AAOIFI (Accounting and Auditing Organisation for Islamic Financial Institutions) Shariah Standard No. 21 screening criteria, as adopted by the Pakistan Stock Exchange (PSX) for its KMI-30 index.</p>
+    <p class="mt-8">The five quantitative tests are computed from raw balance-sheet and income-statement data. No pre-approved company list is consulted — the verdict is calculated purely from the numbers you supply.</p>
+  </div>
+
+  <div class="method-section">
+    <h2>The Five Tests</h2>
+    <table class="method-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Test</th><th>Formula</th><th>Threshold</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>Business activity</td><td>Qualitative</td><td>Core ops must be halal; banks, alcohol, weapons, etc. are blocked</td></tr>
+        <tr><td>2</td><td>Debt ratio</td><td>IBD ÷ Total assets × 100</td><td>&lt; 37%</td></tr>
+        <tr><td>3</td><td>Investment ratio</td><td>NC investments ÷ Total assets × 100</td><td>&lt; 33%</td></tr>
+        <tr><td>4</td><td>Income ratio</td><td>NC income ÷ Total revenue × 100</td><td>&lt; 5%</td></tr>
+        <tr><td>5</td><td>Illiquid assets ratio</td><td>Illiquid assets ÷ Total assets × 100</td><td>≥ 25%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="method-section">
+    <h2>Net Liquid Assets per Share</h2>
+    <p>When a company fails the illiquid assets test (≥ 25%), it may still be compliant if its net liquid assets per share exceed its current market price. This mirrors the KMI screening rule for asset-heavy-but-liquid firms.</p>
+    <p class="mt-8"><strong>Formula:</strong> NLA/share = (Total assets − Illiquid assets − Total liabilities) ÷ Shares outstanding</p>
+    <p class="mt-8">Compare NLA/share against the market price per share.</p>
+  </div>
+
+  <div class="method-section">
+    <h2>Purification</h2>
+    <p>For compliant companies where non-compliant income is &gt; 0%, shareholders must donate a proportionate amount of their dividends to charity. This purifies the investment.</p>
+    <p class="mt-8"><strong>Formula:</strong> Purification per share = Dividend per share × (NC income ÷ Total revenue)</p>
+  </div>
+
+  <div class="method-section">
+    <h2>Data Notes</h2>
+    <ul>
+      <li>All financial inputs should be in the same unit (e.g., all in PKR millions). Only the ratios matter, so the unit cancels out.</li>
+      <li>Interest-bearing debt includes bank borrowings, debentures, lease liabilities, and any other Riba-based financing.</li>
+      <li>Illiquid assets = PPE + intangibles + long-term investments + inventories (tangible assets not readily convertible to cash).</li>
+      <li>Non-compliant income includes interest received, late-payment penalties, and income from prohibited subsidiaries.</li>
+    </ul>
+  </div>
+
+  <div class="method-section">
+    <h2>Disclaimer</h2>
+    <p style="color:var(--warn)">This tool is a screening calculator, not a fatwa. Results should be reviewed by a qualified Islamic finance scholar or Shariah board before making investment decisions. The KMI-30 inclusion/exclusion list is maintained by PSX and may differ from this calculator's output for reasons outside the quantitative criteria.</p>
+  </div>
+</div><!-- /methodology -->
+
+<!-- FAQ -->
+<div id="scr-faq" class="screen page-sm">
+  <h1 class="mb-8">Frequently Asked Questions</h1>
+  <p class="text-4 mb-24" style="font-size:15px">Sharia screening basics, financial ratios, purification, and how this tool works.</p>
+
+  <div class="faq-search-wrap">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="faq-search" class="faq-search" type="text" placeholder="Search questions…" oninput="filterFAQ(this.value)" autocomplete="off">
+  </div>
+  <div class="faq-cats" id="faq-cats"></div>
+
+  <div id="faq-list"></div>
+
+  <div class="faq-disclaimer">
+    <strong>Disclaimer:</strong> This platform is an automated analytical tool for educational and informational purposes only. It does not constitute a fatwa, religious ruling, or financial advice. Always consult a qualified Islamic finance scholar before making investment decisions.
+  </div>
+</div><!-- /faq -->
+
+<!-- SAVED RUNS -->
+<div id="scr-runs" class="screen page">
+  <div class="flex-row space-between mb-24">
+    <h1>Saved Runs</h1>
+    <button class="btn btn-secondary btn-sm" onclick="refreshRuns()">↺ Refresh</button>
+  </div>
+  <div id="runs-content">
+    <div class="empty-state">
+      <div class="spinner"></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ── Glossary Drawer ─────────────────────────────────────────────────── -->
+<div id="glossary-backdrop" class="drawer-backdrop" onclick="closeGlossary()"></div>
+<aside id="glossary-drawer" class="drawer">
+  <div class="drawer-header">
+    <h2>Glossary</h2>
+    <button class="btn-ghost drawer-close" onclick="closeGlossary()">✕</button>
+  </div>
+  <div class="glossary-term">
+    <div class="glossary-term-name">Riba</div>
+    <div class="glossary-term-def">Unjustified increase in exchange or loan transactions. In modern finance this includes interest on loans and deposits. Forbidden by the Quran (2:275–276).</div>
+    <div class="glossary-term-src">Source: AAOIFI Shariah Standard No. 21</div>
+  </div>
+  <div class="glossary-term">
+    <div class="glossary-term-name">Bai al-dayn</div>
+    <div class="glossary-term-def">Sale of debt. Selling predominantly cash/receivable assets at a premium or discount is prohibited. This is why the illiquid assets test exists — companies whose assets are mostly cash resemble money-selling.</div>
+    <div class="glossary-term-src">Source: AAOIFI Shariah Standard No. 21</div>
+  </div>
+  <div class="glossary-term">
+    <div class="glossary-term-name">AAOIFI</div>
+    <div class="glossary-term-def">Accounting and Auditing Organisation for Islamic Financial Institutions. A Bahrain-based international autonomous non-profit body that issues Shariah, accounting, auditing, ethics, and governance standards for Islamic financial institutions.</div>
+    <div class="glossary-term-src">aaoifi.com</div>
+  </div>
+  <div class="glossary-term">
+    <div class="glossary-term-name">KMI-30</div>
+    <div class="glossary-term-def">KMI-30 (Karachi Meezan Index) is Pakistan's first and premier Shariah-compliant index, tracking 30 companies screened by the Pakistan Stock Exchange (PSX) using AAOIFI criteria reviewed semi-annually.</div>
+    <div class="glossary-term-src">psx.com.pk</div>
+  </div>
+  <div class="glossary-term">
+    <div class="glossary-term-name">Purification</div>
+    <div class="glossary-term-def">When a Shariah-compliant company earns a small amount of prohibited income (e.g. bank interest on overnight deposits), investors must donate the proportional share of their dividends to charity to "purify" the investment.</div>
+    <div class="glossary-term-src">AAOIFI Standard No. 21, clause 3</div>
+  </div>
+  <div class="glossary-term">
+    <div class="glossary-term-name">Interest-bearing debt (IBD)</div>
+    <div class="glossary-term-def">Financing that carries a fixed or variable interest obligation: bank loans, overdrafts, conventional bonds (debentures), and finance lease liabilities. Islamic sukuk are excluded.</div>
+    <div class="glossary-term-src">PSX KMI screening guidelines</div>
+  </div>
+  <div class="glossary-term">
+    <div class="glossary-term-name">Illiquid assets</div>
+    <div class="glossary-term-def">Property, plant and equipment; intangible assets; long-term investments in non-cash instruments; inventories. Assets not immediately convertible to cash without a significant loss in value.</div>
+    <div class="glossary-term-src">AAOIFI Standard No. 21</div>
+  </div>
+  <div class="glossary-term">
+    <div class="glossary-term-name">Net Liquid Assets per Share (NLA/share)</div>
+    <div class="glossary-term-def">A secondary test for companies with low illiquid assets. NLA/share = (Total assets − Illiquid assets − Total liabilities) ÷ Shares outstanding. If NLA/share &lt; market price, the shares trade at a premium to cash — which resembles Bai al-dayn.</div>
+    <div class="glossary-term-src">PSX KMI screening guidelines</div>
+  </div>
+</aside>
+
+<!-- Toast -->
+<div id="toast" class="success-toast"></div>
+
+<!-- ── JS ───────────────────────────────────────────────────────────── -->
+<script>
+'use strict';
+
+// ── Constants ─────────────────────────────────────────────────────────────
+const SAMPLES = {
+  engro: {
+    company_name:'Engro Corporation', ticker:'ENGRO',
+    business_compliant: true, business_activity:'Fertilizer, chemicals & energy',
+    total_assets:524000, interest_bearing_debt:162000,
+    noncompliant_investments:88000, noncompliant_income:2100,
+    total_revenue:358000, illiquid_assets:214000,
+    total_liabilities:236000, number_of_shares:599,
+    market_price_per_share: null,
+    period:'Year ended 31 Dec 2024', currency_unit:'PKR millions', data_source:'Sample data',
+  },
+  pioc: {
+    company_name:'Pioneer Cement', ticker:'PIOC',
+    business_compliant: true, business_activity:'Cement manufacturing',
+    total_assets:320000, interest_bearing_debt:180000,
+    noncompliant_investments:5000, noncompliant_income:980,
+    total_revenue:280000, illiquid_assets:220000,
+    total_liabilities:230000, number_of_shares:390,
+    market_price_per_share: null,
+    period:'Year ended 30 Jun 2024', currency_unit:'PKR millions', data_source:'Sample data',
+  },
+  hbl: {
+    company_name:'Habib Bank Limited', ticker:'HBL',
+    business_compliant: false, business_activity:'Conventional commercial banking',
+    total_assets:4800000, interest_bearing_debt:3200000,
+    noncompliant_investments:420000, noncompliant_income:98000,
+    total_revenue:210000, illiquid_assets:180000,
+    total_liabilities:4500000, number_of_shares:14676,
+    market_price_per_share: null,
+    period:'Year ended 31 Dec 2024', currency_unit:'PKR millions', data_source:'Sample data',
+  },
+};
+
+const FIELD_LABELS = [
+  'Company name','Ticker symbol','Business activity',
+  'Total assets','Interest-bearing debt','Non-compliant investments',
+  'Non-compliant income','Total revenue','Illiquid assets',
+  'Total liabilities','Shares outstanding',
+];
+// Response keys parallel to FIELD_LABELS — used to mark each figure found/not-found.
+const FIELD_KEYS = [
+  'company_name','ticker','business_activity',
+  'total_assets','interest_bearing_debt','noncompliant_investments',
+  'noncompliant_income','total_revenue','illiquid_assets',
+  'total_liabilities','number_of_shares',
+];
+const _CHECK_SVG = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>';
+const _DASH_SVG  = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 20 20"><line x1="5" y1="10" x2="15" y2="10" stroke-linecap="round"/></svg>';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let S = {
+  screen: 'home',
+  form: {},
+  extractMeta: null,
+  extractFile: null,
+  extractProgress: 0,
+  extractFields: [],
+  extractDone: false,
+  extractError: null,
+  runs: null,
+  runsLoading: false,
+  aiReady: false,
+  storageConfigured: false,
+  priceLoading: false,
+  saving: false,
+  saveError: null,
+  purifShares: '',
+  purifDps: '',
+  reportPdfUrl: null,
+  sourcePdfUrl: null,
+  _srcUrlOwner: null,   // identity (File object or 'run:<id>') the sourcePdfUrl belongs to
+  docsCurrentType: 'report',
+  loadedRun: null,
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+// Safe base64 encoding for large ArrayBuffers (spread operator overflows call stack on big files)
+function _bufToBase64(buf) {
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function _isPreviewable(fileOrName) {
+  const name = (fileOrName?.name || fileOrName || '').toLowerCase();
+  const type = fileOrName?.type || '';
+  return type === 'application/pdf' || name.endsWith('.pdf') ||
+         type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/.test(name);
+}
+
+function _noPreviewHtml(filename) {
+  const ext = (filename.split('.').pop() || '').toUpperCase();
+  return `<div class="docs-placeholder" style="flex-direction:column;gap:12px">
+    <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--ink-4)"><path d="M4 22h14a2 2 0 002-2V7.5L14.5 2H6a2 2 0 00-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10M2 19h6"/></svg>
+    <div style="text-align:center">
+      <div style="font-weight:600;color:var(--ink);margin-bottom:4px">${filename}</div>
+      <div style="font-size:13px;color:var(--ink-4)">${ext} files can't be previewed — use Download to open</div>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="downloadCurrentDoc()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Download ${filename}
+    </button>
+  </div>`;
+}
+
+const num = v => { if (v === null || v === undefined || v === '') return 0; const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? 0 : n; };
+const pct = (v, d=1) => v == null ? '—' : (v).toFixed(d) + '%';
+const fmtN = v => { if (!isFinite(v) || v == null) return '—'; const n = Math.abs(v); const s = n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : n.toFixed(2); return (v < 0 ? '−' : '') + s; };
+const fmtDate = s => { try { return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch { return s; } };
+
+// ── Screening math (mirrors allshariah_core.py) ───────────────────────────
+function computeRatios(f) {
+  const ta  = num(f.total_assets);
+  const ibd = num(f.interest_bearing_debt);
+  const nci = num(f.noncompliant_investments);
+  const ncinc = num(f.noncompliant_income);
+  const rev = num(f.total_revenue);
+  const ia  = num(f.illiquid_assets);
+  const tl  = num(f.total_liabilities);
+  const sh  = num(f.number_of_shares);
+  const px  = num(f.market_price_per_share) || null;
+
+  const debt_ratio       = ta ? (ibd / ta * 100) : null;
+  const investment_ratio = ta ? (nci / ta * 100) : null;
+  const income_ratio     = rev ? (ncinc / rev * 100) : null;
+  const illiquid_ratio   = ta ? (ia / ta * 100) : null;
+  const nla_per_share    = (ta && sh) ? (ta - ia - tl) / sh : null;
+
+  return { debt_ratio, investment_ratio, income_ratio, illiquid_ratio, nla_per_share, price: px };
+}
+
+function screenForm(f) {
+  const r = computeRatios(f);
+  const bizOk = f.business_compliant !== false;
+  const tests = [
+    { key:'biz',    label:'Business activity', value: bizOk ? 'Compliant' : 'Non-compliant', threshold:'Halal core business',         passed: bizOk, meaning:'Core operations must not involve Riba, alcohol, tobacco, weapons, or adult content.' },
+    { key:'debt',   label:'Debt ratio',         value: r.debt_ratio,       threshold:'IBD / TA < 37%',      passed: r.debt_ratio   != null ? r.debt_ratio   < 37 : null, meaning:'Interest-bearing debt as a share of total assets.' },
+    { key:'invest', label:'Investment ratio',   value: r.investment_ratio, threshold:'NCInv / TA < 33%',    passed: r.investment_ratio != null ? r.investment_ratio < 33 : null, meaning:'Non-compliant equity investments relative to total assets.' },
+    { key:'income', label:'Income ratio',       value: r.income_ratio,     threshold:'NCInc / TR < 5%',     passed: r.income_ratio  != null ? r.income_ratio  < 5  : null, meaning:'Prohibited income (interest, penalties) as a share of total revenue.' },
+    { key:'illiq',  label:'Illiquid assets',    value: r.illiquid_ratio,   threshold:'IA / TA ≥ 25%',       passed: r.illiquid_ratio != null ? r.illiquid_ratio >= 25 : null, meaning:'Tangible / illiquid assets must form at least one-quarter of the balance sheet.' },
+  ];
+  const failed = tests.filter(t => t.passed === false);
+  const compliant = failed.length === 0;
+  return { tests, failed, compliant, ratios: r };
+}
+
+// ── API layer ─────────────────────────────────────────────────────────────
+async function apiStatus() {
+  try {
+    const r = await fetch('/api/status');
+    if (!r.ok) return;
+    const d = await r.json();
+    S.aiReady = d.ai_ready;
+    S.storageConfigured = d.storage_configured;
+    renderNav();
+    renderHomeWarning();
+  } catch {}
+}
+
+// XHR-based so we get REAL upload progress (fetch can't report upload %).
+function apiExtract(file, { onProgress, onUploadDone } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/extract');
+    if (onProgress) xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    if (onUploadDone) xhr.upload.onload = () => onUploadDone();
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch (_) { reject(new Error('Unexpected response from server')); }
+      } else {
+        reject(new Error(xhr.responseText || ('Server error ' + xhr.status)));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    const fd = new FormData();
+    fd.append('file', file);
+    xhr.send(fd);
+  });
+}
+
+async function apiRuns() {
+  const r = await fetch('/api/runs');
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function apiSaveRun(body) {
+  const r = await fetch('/api/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function apiDeleteRun(id) {
+  const r = await fetch(`/api/runs/${id}`, { method:'DELETE' });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function apiPdf(body) {
+  const r = await fetch('/api/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.blob();
+}
+
+async function apiPurifPdf(body) {
+  const r = await fetch('/api/purification-pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.blob();
+}
+
+async function apiPrice(ticker) {
+  const r = await fetch(`/api/price/${encodeURIComponent(ticker)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function go(screen) {
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.getElementById(`scr-${screen}`)?.classList.add('active');
+  S.screen = screen;
+  renderNav();
+  window.scrollTo(0, 0);
+
+  if (screen === 'runs' && !S.runs && !S.runsLoading) refreshRuns();
+  if (screen === 'faq' && !S._faqRendered) { renderFAQ(); S._faqRendered = true; }
+
+  if (screen === 'review') {
+    const btn = document.getElementById('run-btn');
+    if (btn) btn.textContent = S.lastResult ? 'Re-run Shariah screening →' : 'Run Shariah screening →';
+    setupReviewDoc();
+  }
+
+  return false; // prevent href navigation
+}
+
+// ── Nav render ────────────────────────────────────────────────────────────
+function renderNav() {
+  document.querySelectorAll('.nav-link').forEach(a => {
+    a.classList.toggle('active', a.dataset.nav === S.screen ||
+      (S.screen === 'review' && a.dataset.nav === 'home') ||
+      (S.screen === 'extracting' && a.dataset.nav === 'home') ||
+      (S.screen === 'results' && a.dataset.nav === 'home'));
+  });
+
+  const statusEl = document.getElementById('nav-status');
+  const dots = [];
+  if (S.aiReady) dots.push('<span class="status-dot ok"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>AI</span>');
+  else dots.push('<span class="status-dot off"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>AI</span>');
+  if (S.storageConfigured) dots.push('<span class="status-dot ok"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Cloud</span>');
+  statusEl.innerHTML = dots.join('');
+}
+
+// ── FAQ ───────────────────────────────────────────────────────────────────
+const FAQ_DATA = [
+  { cat: 'General Sharia Compliance', items: [
+    ['What is Sharia compliance?', 'It means conducting business and financial activities according to Islamic law and principles.'],
+    ['What makes a company Sharia-compliant?', 'A company is compliant if its core business is permissible (Halal) and its financial accounts pass specific Islamic ratio tests.'],
+    ['Why do we screen companies for Sharia compliance?', 'To ensure Muslim investors can grow their wealth without participating in prohibited (Haram) activities like gambling or interest (Riba).'],
+    ['What is considered a Haram business activity?', 'Businesses involved in alcohol, pork, gambling, adult entertainment, weapons, and conventional banking are considered Haram.'],
+    ['What is the business screening process?', 'It is the first step where a company’s main products, services, and sources of revenue are checked to ensure they are Halal.'],
+    ['What is the financial screening process?', 'It is the second step where a company’s financial statements are checked to ensure its debt, cash, and interest income are within allowed limits.'],
+    ['Are conventional banks Sharia-compliant?', 'No, because their primary business model relies on earning and paying interest, which is strictly prohibited in Islam.'],
+    ['Who decides the Sharia compliance criteria?', 'Recognized Islamic financial bodies, such as AAOIFI (Accounting and Auditing Organization for Islamic Financial Institutions) or local Islamic regulatory authorities, set these guidelines.'],
+    ['Can a modern company be 100% pure from a Sharia perspective?', 'It is very rare in today’s global economy. Therefore, Islamic scholars have established acceptable thresholds for certain non-compliant financial elements to allow Muslims to invest.'],
+    ['What happens if a company fails the initial screening?', 'It is declared non-compliant, and Islamic investors are not permitted to buy or hold its shares.'],
+  ]},
+  { cat: 'Financial Ratios & Thresholds', items: [
+    ['What are financial ratios in Sharia screening?', 'They are mathematical calculations used to measure a company’s debt, cash, and investments to ensure they stay within acceptable Islamic limits.'],
+    ['What is the Debt Ratio?', 'It measures the total interest-bearing debt a company owes compared to its total assets or its total market capitalization.'],
+    ['Why is the Debt Ratio important?', 'Because taking interest-bearing loans is prohibited, a company’s reliance on such conventional debt must be strictly limited.'],
+    ['What is the acceptable limit for the Debt Ratio?', 'Generally, a company’s total interest-bearing debt must be less than 30% or 33% (depending on the specific standard used) of its total market value or assets. This tool uses the PSX-KMI threshold of under 37%.'],
+    ['What is the Non-Compliant Investments Ratio?', 'It measures how much of a company’s money is placed in interest-bearing bank accounts, conventional bonds, or shares of non-compliant companies.'],
+    ['What is the allowed limit for Non-Compliant Investments?', 'These interest-yielding investments must usually remain below 30% or 33% of the company’s total assets or market value.'],
+    ['What is the Liquid Assets Ratio?', 'It measures a company’s cash and easily convertible financial assets compared to its total assets.'],
+    ['What is the Illiquid Assets Ratio?', 'It measures the physical or tangible assets (like property, machinery, factories, or inventory) a company owns.'],
+    ['Why must a company have illiquid assets?', 'Sharia requires that shares represent a real business with physical value, not just a pool of cash. Therefore, physical assets must usually be at least 20% to 25% of total assets.'],
+  ]},
+  { cat: 'Turnover, Income & Purification', items: [
+    ['What is meant by Company Turnover?', 'Turnover refers to the total sales or revenue a company generates from its business operations during a specific financial period.'],
+    ['How does the Turnover Ratio relate to Sharia compliance?', 'Analysts look at a company’s total turnover to calculate what percentage of its total income comes from minor, unintentional non-compliant sources.'],
+    ['What is the Non-Compliant Income Ratio?', 'It is the percentage of a company’s total revenue (turnover) that comes from interest earned or minor prohibited secondary activities.'],
+    ['What is the allowed limit for Non-Compliant Income?', 'Non-compliant income must be kept very small, strictly less than 5% of the company’s total revenue.'],
+    ['What happens if a company earns a little bit of interest?', 'The company can still be compliant if the interest is below the 5% threshold, but investors must “purify” that portion of their earnings.'],
+    ['What is Dividend Purification?', 'It is the process of calculating and donating the small percentage of your dividend income that came from the company’s non-compliant activities to charity.'],
+    ['How do I purify my dividends?', 'If 3% of a company’s revenue was from interest, you simply calculate 3% of the dividend you received and give it to charity without expecting a religious reward for the donation.'],
+    ['How often should a company be screened?', 'Companies should be screened regularly, usually every quarter, because their financial ratios change with every new financial report.'],
+    ['Can a Sharia-compliant company become non-compliant later on?', 'Yes, if it takes on too much conventional debt, earns too much interest, or starts a prohibited business line, it will lose its compliance status.'],
+    ['What should I do if a stock I own becomes non-compliant?', 'You are generally advised to sell the shares within a specific grace period, often 90 days, to remain compliant.'],
+    ['Do I need to purify capital gains (profits from selling shares)?', 'Most scholars agree that capital gains do not need to be purified, as long as the core business is Halal and the share price rise was not directly driven by Haram assets.'],
+  ]},
+  { cat: 'Trading, Investments & Market Practices', items: [
+    ['Is Day Trading Sharia-compliant?', 'Day trading is highly discouraged or considered non-compliant by most scholars because you must take true, settled ownership of a stock before selling it, and it often resembles speculation or gambling.'],
+    ['Can I trade options, futures, or short-sell stocks?', 'No. Short-selling, options, and futures trading are generally considered Haram because they involve selling things you do not own and include high elements of excessive risk and gambling (Gharar).'],
+    ['Is buying stocks on margin allowed?', 'No, buying stocks on margin involves borrowing money from a broker that charges interest, which violates the strict rule against Riba.'],
+    ['Are tech and AI companies generally Sharia-compliant?', 'Yes, tech and AI companies usually pass the business screening, but you must still check their financial ratios, as many tech companies hold a lot of cash in interest-bearing accounts.'],
+    ['Are cryptocurrency and digital assets Sharia-compliant?', 'The scholarly view is mixed. Some scholars permit established cryptocurrencies with utility, while others forbid them due to extreme volatility and lack of central backing.'],
+  ]},
+  { cat: 'About Tools, Platforms & Methodology', items: [
+    ['Why do different Sharia screening apps show different results for the same stock?', 'Because they may use different scholarly standards. For example, some apps follow AAOIFI guidelines, while others follow Dow Jones Islamic Index or MSCI standards, which have slightly different math thresholds.'],
+    ['What standard does this website use for calculation?', 'This platform uses standardized, widely accepted global metrics (such as the 33% debt/investment limits and the 5% revenue limit) to calculate compliance accurately, aligned with the PSX-KMI screening rules.'],
+    ['Where does this platform get its financial data?', 'The website reads financial figures directly from the public financial statements, company balance sheets, and reports you provide, and can use live stock-market price feeds.'],
+    ['Does this website automatically calculate purification amounts?', 'Yes, the system analyzes the exact proportion of non-compliant income to help you see exactly how much of your dividend needs to be purified.'],
+    ['Is the information on this website financial advice or a fatwa?', 'No, this is an automated analytical tool meant for educational and informational purposes to help you filter stocks based on standard Islamic finance criteria.'],
+  ]},
+];
+
+function _faqSlug(cat) { return 'faq-cat-' + cat.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+function renderFAQ() {
+  const list = document.getElementById('faq-list');
+  const cats = document.getElementById('faq-cats');
+  if (!list || !cats) return;
+
+  cats.innerHTML = FAQ_DATA.map(g =>
+    `<button class="faq-cat-chip" onclick="document.getElementById('${_faqSlug(g.cat)}')?.scrollIntoView({behavior:'smooth',block:'start'})">${g.cat}</button>`
+  ).join('');
+
+  let n = 0;
+  list.innerHTML = FAQ_DATA.map(g => {
+    const items = g.items.map(([q, a]) => {
+      n++;
+      return `<div class="faq-item" data-q="${(q + ' ' + a).toLowerCase().replace(/"/g, '&quot;')}">
+        <button class="faq-q" type="button" onclick="toggleFaq(this)">
+          <span class="faq-qnum">Q${n}</span>
+          <span>${q}</span>
+          <svg class="faq-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="faq-a">${a}</div>
+      </div>`;
+    }).join('');
+    return `<div class="faq-category" id="${_faqSlug(g.cat)}">
+      <div class="faq-category-title">${g.cat}</div>
+      ${items}
+    </div>`;
+  }).join('') + '<div class="faq-empty" id="faq-empty" style="display:none">No questions match your search.</div>';
+}
+
+function toggleFaq(btn) {
+  btn.closest('.faq-item')?.classList.toggle('open');
+}
+
+function filterFAQ(query) {
+  const q = (query || '').trim().toLowerCase();
+  let anyVisible = false;
+  document.querySelectorAll('#faq-list .faq-category').forEach(cat => {
+    let catVisible = false;
+    cat.querySelectorAll('.faq-item').forEach(item => {
+      const match = !q || (item.dataset.q || '').includes(q);
+      item.style.display = match ? '' : 'none';
+      if (match) { catVisible = true; anyVisible = true; }
+      // auto-expand matches when searching, collapse when cleared
+      item.classList.toggle('open', !!q && match);
+    });
+    cat.style.display = catVisible ? '' : 'none';
+  });
+  const empty = document.getElementById('faq-empty');
+  if (empty) empty.style.display = anyVisible ? 'none' : 'block';
+  const cats = document.getElementById('faq-cats');
+  if (cats) cats.style.display = q ? 'none' : 'flex';
+}
+
+function renderHomeWarning() {
+  const el = document.getElementById('home-warn');
+  if (el) el.style.display = S.aiReady ? 'none' : 'flex';
+  const uz = document.getElementById('upload-zone');
+  if (uz) uz.style.opacity = S.aiReady ? '1' : '.6';
+}
+
+// ── File handling ─────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone')?.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFileSelect(file);
+}
+
+// ── Annual-report finder (opens a Google search in a new tab) ──────────────
+function updateAnnualQuery() {
+  const name = (document.getElementById('ar-search')?.value || '').trim();
+  const span = document.querySelector('#ar-query-preview span');
+  if (span) span.textContent = name ? `${name} Annual Report` : '—';
+}
+function openAnnualReportSearch() {
+  const name = (document.getElementById('ar-search')?.value || '').trim();
+  if (!name) { document.getElementById('ar-search')?.focus(); return; }
+  const q = encodeURIComponent(`${name} Annual Report`);
+  window.open(`https://www.google.com/search?q=${q}`, '_blank', 'noopener');
+}
+
+function handleFileSelect(file) {
+  if (!S.aiReady) { showToast('AI key not configured — please enter numbers manually', 'error'); return; }
+  if (!file) return;
+  S.extractFile = file;
+  S.loadedRun = null;
+  S.lastResult = null;          // fresh extraction → this is a first run, not a re-run
+  S.purifDps = ''; S.purifShares = '';   // new company → clear prior dividend inputs
+  _resetSourceUrl();            // drop any previously-loaded source so we never show the wrong doc
+  runExtract(file);
+}
+
+// ── Extraction flow ───────────────────────────────────────────────────────
+let _analysisTimer = null;
+
+function _extSetBar(pct) {
+  const bar = document.getElementById('ext-bar');
+  if (bar) bar.style.width = pct + '%';
+  const p = document.getElementById('ext-pct');
+  if (p) p.textContent = Math.round(pct) + '%';
+}
+function _extSetStatus(t) {
+  const s = document.getElementById('ext-status');
+  if (s) s.textContent = t;
+}
+
+async function runExtract(file) {
+  go('extracting');
+  S.extractDone = false;
+  S.extractError = null;
+  renderExtracting();   // renders the real document + all figures as "pending"
+
+  clearInterval(_analysisTimer);
+  let cur = 0;
+  // Phase 2: AI analysis is server-side and returns all at once — we can't get
+  // per-figure progress, so this is an honest, clearly-labelled creep toward 90%.
+  const startAnalysisCreep = () => {
+    cur = Math.max(cur, 40);
+    _extSetBar(cur);
+    _extSetStatus('Analysing with AI…');
+    clearInterval(_analysisTimer);
+    _analysisTimer = setInterval(() => {
+      cur = Math.min(90, cur + (90 - cur) * 0.045 + 0.15);
+      _extSetBar(cur);
+    }, 250);
+  };
+
+  try {
+    _extSetStatus('Uploading document…');
+    const data = await apiExtract(file, {
+      onProgress: (frac) => {                 // Phase 1: REAL upload progress, 0–38%
+        if (frac < 1) { cur = frac * 38; _extSetBar(cur); }
+      },
+      onUploadDone: startAnalysisCreep,       // upload finished → analysis begins
+    });
+
+    clearInterval(_analysisTimer);
+    _extSetBar(100);
+    _extSetStatus('Extraction complete');
+    S.extractMeta = data.extraction_meta || null;
+    fillFormFromData(data);
+    _resolveExtractFields(data);              // Phase 3: REAL per-figure found/not-found
+    setTimeout(() => go('review'), 1000);
+  } catch (err) {
+    clearInterval(_analysisTimer);
+    S.extractError = err.message;
+    const statusEl = document.getElementById('ext-status');
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--fail)">${err.message}</span>`;
+    const btn = document.getElementById('ext-btn-manual');
+    if (btn) btn.style.display = 'inline-flex';
+  }
+}
+
+// Mark each figure found (✓) or not-found (–) based on what the AI actually returned.
+function _resolveExtractFields(data) {
+  let found = 0;
+  FIELD_KEYS.forEach((key, i) => {
+    const v = data[key];
+    const ok = v != null && v !== '';
+    const item = document.getElementById('extf-' + i);
+    if (!item) return;
+    item.classList.remove('pending');
+    item.classList.add(ok ? 'found' : 'missing');
+    const mark = item.querySelector('.field-mark');
+    if (mark) mark.innerHTML = ok ? _CHECK_SVG : _DASH_SVG;
+    if (ok) found++;
+  });
+  const total = FIELD_KEYS.length, miss = total - found;
+  const sum = document.getElementById('ext-summary');
+  if (sum) {
+    sum.style.display = 'block';
+    sum.innerHTML = miss === 0
+      ? `<strong>All ${total} figures extracted.</strong> Opening review…`
+      : `<strong>${found} of ${total} figures found.</strong> ${miss} not detected — fill ${miss > 1 ? 'them' : 'it'} in on the next screen.`;
+  }
+}
+
+function renderExtracting() {
+  const el = document.getElementById('extract-content');
+  if (!el) return;
+
+  const file = S.extractFile;
+  const previewable = file && _isPreviewable(file);
+  const isImg = file && ((file.type || '').startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name));
+
+  let docInner;
+  if (previewable) {
+    const url = _uploadSourceUrl();
+    docInner = isImg
+      ? `<img class="doc-real" src="${url}" alt="Uploaded document">`
+      : `<iframe class="doc-real" src="${url}#toolbar=0&navpanes=0&view=FitH" tabindex="-1"></iframe>`;
+  } else {
+    const ext = file ? (file.name.split('.').pop() || '').toUpperCase() : 'FILE';
+    docInner = `<div class="doc-lines">${'<div class="doc-line full"></div><div class="doc-line short"></div><div class="doc-line full"></div><div class="doc-line med"></div>'.repeat(4)}</div>
+      <div class="doc-filebadge">${ext}</div>`;
+  }
+
+  const fieldsHtml = FIELD_LABELS.map((label, i) =>
+    `<div class="field-item pending" id="extf-${i}">
+       <span class="field-mark"><span class="field-dot"></span></span>
+       <span>${label}</span>
+     </div>`).join('');
+
+  const fname = file ? file.name : 'document';
+  const fsize = file ? _fmtBytes(file.size) : '';
+
+  el.innerHTML = `
+    <div class="extract-layout">
+      <div class="doc-preview">
+        ${docInner}
+        <div class="scan-line"></div>
+        <div class="doc-scan-tag">
+          <span class="scan-pulse"></span> Scanning
+        </div>
+      </div>
+      <div class="extract-panel">
+        <div>
+          <div class="label" style="margin-bottom:6px">Source</div>
+          <div class="extract-file">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div style="min-width:0">
+              <div class="extract-fname" title="${fname}">${fname}</div>
+              ${fsize ? `<div class="extract-fsize">${fsize}</div>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="extract-title" id="ext-status">Uploading document…</div>
+          <div class="flex-row space-between mb-4 mt-12" style="font-size:13px;color:var(--ink-4)">
+            <span>Progress</span><span id="ext-pct" class="mono">0%</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div id="ext-bar" class="progress-bar-fill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="label mb-8">Figures (${FIELD_LABELS.length})</div>
+          <div class="field-list">${fieldsHtml}</div>
+        </div>
+
+        <div id="ext-summary" class="extract-summary" style="display:none"></div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button id="ext-btn-manual" class="btn btn-secondary" style="display:none" onclick="go('review')">
+            Enter manually instead
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function _fmtBytes(b) {
+  if (!b && b !== 0) return '';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(0) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+// ── Fill form from extracted / sample data ────────────────────────────────
+function fillFormFromData(data) {
+  const fields = [
+    'company_name','ticker','business_activity',
+    'total_assets','interest_bearing_debt','noncompliant_investments',
+    'noncompliant_income','total_revenue','illiquid_assets',
+    'total_liabilities','number_of_shares','market_price_per_share',
+  ];
+  fields.forEach(f => {
+    const el = document.getElementById(`fi-${f}`);
+    if (!el) return;
+    const v = data[f];
+    el.value = (v != null && v !== '') ? v : '';
+  });
+
+  // Business compliant radio
+  const bizVal = data.business_compliant === false ? 'no' : 'yes';
+  document.querySelectorAll('input[name="biz_compliant"]').forEach(r => {
+    r.checked = r.value === bizVal;
+  });
+
+  // Metadata
+  const meta = data.extraction_meta || {};
+  const period = meta.period || data.period || '';
+  const cu = meta.currency_unit || data.currency_unit || '';
+  const src = data.data_source || (S.extractFile ? S.extractFile.name : '');
+
+  ['period','currency_unit','data_source'].forEach(k => {
+    const el = document.getElementById(`fi-${k}`);
+    if (el) el.value = { period, currency_unit: cu, data_source: src }[k] || '';
+  });
+
+  // Extraction notes are internal AI reasoning — don't show to user
+}
+
+// ── Read form ─────────────────────────────────────────────────────────────
+function readForm() {
+  const f = {};
+  const numFields = [
+    'total_assets','interest_bearing_debt','noncompliant_investments',
+    'noncompliant_income','total_revenue','illiquid_assets',
+    'total_liabilities','number_of_shares','market_price_per_share',
+  ];
+  f.company_name    = document.getElementById('fi-company_name')?.value.trim() || '';
+  f.ticker          = document.getElementById('fi-ticker')?.value.trim().toUpperCase() || '';
+  f.business_activity = document.getElementById('fi-business_activity')?.value.trim() || '';
+  const bizR = document.querySelector('input[name="biz_compliant"]:checked');
+  f.business_compliant = !(bizR && bizR.value === 'no');
+
+  numFields.forEach(k => {
+    const v = document.getElementById(`fi-${k}`)?.value;
+    if (v === '' || v == null) { f[k] = null; return; }
+    const n = parseFloat(String(v).replace(/,/g, ''));
+    f[k] = isNaN(n) ? null : n;   // preserve a written 0 (don't collapse to null/"no data")
+  });
+
+  f.period        = document.getElementById('fi-period')?.value.trim() || '';
+  f.currency_unit = document.getElementById('fi-currency_unit')?.value.trim() || '';
+  f.data_source   = document.getElementById('fi-data_source')?.value.trim() || '';
+
+  return f;
+}
+
+// ── Load sample ───────────────────────────────────────────────────────────
+function loadSample(key) {
+  const d = SAMPLES[key];
+  if (!d) return;
+  S.extractMeta = null;
+  S.extractFile = null;
+  S.loadedRun = null;
+  S.purifDps = ''; S.purifShares = '';   // new company → clear prior dividend inputs
+  _resetSourceUrl();   // sample has no source doc — clear any prior one
+  fillFormFromData(d);
+  go('review');
+}
+
+// ── Run screening ─────────────────────────────────────────────────────────
+function runScreening() {
+  const f = readForm();
+  S.form = f;
+  const { tests, failed, compliant, ratios } = screenForm(f);
+  S.lastResult = { f, tests, failed, compliant, ratios };
+  if (S.reportPdfUrl) { URL.revokeObjectURL(S.reportPdfUrl); S.reportPdfUrl = null; }
+  // New results → force the doc panel to reload (otherwise a stale iframe from a
+  // previous run/screening lingers and renderResults skips the auto-load).
+  S.docsCurrentType = 'report';
+  const w = document.getElementById('docs-frame-wrap');
+  if (w) w.innerHTML = '<div class="docs-placeholder"><div class="spinner"></div><span>Loading…</span></div>';
+  go('results');
+  renderResults();
+}
+
+// ── Results render ────────────────────────────────────────────────────────
+function renderResults() {
+  const el = document.getElementById('res-content');
+  if (!el || !S.lastResult) return;
+  const { f, tests, failed, compliant, ratios } = S.lastResult;
+
+  const verdictClass = compliant ? 'pass' : 'fail';
+  const verdictLabel = compliant ? 'Shariah Compliant' : 'Non-Compliant';
+  const verdictSub = compliant
+    ? (failed.length === 0 ? 'All five screening tests passed.' : '')
+    : `Failed: ${failed.map(t=>t.label).join(', ')}`;
+  const passCount = tests.filter(t => t.passed === true).length;
+  const totalTests = tests.length;
+
+  const ratioCards = tests.slice(1).map(t => {
+    const isPass = t.passed === true;
+    const isFail = t.passed === false;
+    const cls = t.passed === true ? 'pass' : t.passed === false ? 'fail' : 'na';
+    const valDisplay = typeof t.value === 'number' ? pct(t.value) : (t.value || '—');
+    const valClass = isPass ? 'pass' : isFail ? 'fail' : '';
+    const badge = isPass
+      ? '<span class="badge badge-pass">✓ Pass</span>'
+      : isFail
+      ? '<span class="badge badge-fail">✗ Fail</span>'
+      : '<span class="badge badge-neutral">N/A</span>';
+    return `
+      <div class="ratio-card ${cls}">
+        <div class="ratio-label">${t.label}</div>
+        <div class="ratio-value ${valClass}">${valDisplay}</div>
+        <div class="ratio-threshold">${t.threshold}</div>
+        <div class="ratio-badge">${badge}</div>
+        <div class="ratio-meaning">${t.meaning}</div>
+      </div>`;
+  }).join('');
+
+  // Business activity card
+  const bizCls = f.business_compliant ? 'pass' : 'fail';
+  const bizBadge = f.business_compliant
+    ? '<span class="badge badge-pass">✓ Pass</span>'
+    : '<span class="badge badge-fail">✗ Blocked</span>';
+  const bizCard = `
+    <div class="ratio-card ${bizCls}">
+      <div class="ratio-label">Business Activity</div>
+      <div class="ratio-value ${bizCls}" style="font-size:18px;font-family:var(--font);font-weight:600">${f.business_compliant ? 'Compliant' : 'Blocked'}</div>
+      <div class="ratio-threshold">Halal core business</div>
+      <div class="ratio-badge">${bizBadge}</div>
+      <div class="ratio-meaning">${f.business_activity || 'No activity description entered.'}</div>
+    </div>`;
+
+  // NLA section
+  let nlaHtml = '';
+  if (ratios.nla_per_share != null) {
+    const nla = ratios.nla_per_share;
+    const px = ratios.price;
+    const nlaOk = px ? (nla < px) : null;
+    const nlaCard = nlaOk === false
+      ? `<span class="badge badge-fail">NLA/share (${fmtN(nla)}) > Price — observe</span>`
+      : nlaOk === true
+      ? `<span class="badge badge-pass">NLA/share (${fmtN(nla)}) &lt; Price — ok</span>`
+      : `<span class="badge badge-neutral">Price not set — cannot compare</span>`;
+    nlaHtml = `
+      <div class="nla-card mb-24">
+        <h3 class="mb-4">Net Liquid Assets per Share</h3>
+        <p style="font-size:13.5px;color:var(--ink-4);margin-bottom:12px">
+          (Total assets − Illiquid assets − Total liabilities) ÷ Shares outstanding
+        </p>
+        <div class="nla-compare">
+          <div class="nla-fig">
+            <div class="nla-num mono">${fmtN(nla)}</div>
+            <div class="nla-caption">NLA / share</div>
+          </div>
+          ${px != null ? `<div style="font-size:20px;color:var(--ink-5)">vs</div>
+          <div class="nla-fig">
+            <div class="nla-num mono">${fmtN(px)}</div>
+            <div class="nla-caption">Market price</div>
+          </div>` : ''}
+          <div class="mt-8">${nlaCard}</div>
+        </div>
+      </div>`;
+  }
+
+  // Purification section (only when compliant and income_ratio > 0)
+  let purifHtml = '';
+  if (compliant && ratios.income_ratio != null && ratios.income_ratio > 0) {
+    const ir = ratios.income_ratio / 100;
+    const dps = num(S.purifDps);
+    const shares = num(S.purifShares);
+    const purifPerShare = dps * ir;
+    const totalPurif = shares * purifPerShare;
+
+    purifHtml = `
+      <div class="purif-card mb-24">
+        <div class="purif-title">
+          <svg width="18" height="18" fill="none" stroke="var(--warn)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <h3>Purification Calculator</h3>
+          <span class="badge badge-gold">NC income ratio: ${pct(ratios.income_ratio)}</span>
+        </div>
+        <p style="font-size:13.5px;color:var(--ink-3);margin-bottom:16px">
+          This company earned ${pct(ratios.income_ratio)} non-compliant income. Shareholders must donate a matching proportion of dividends to charity.
+        </p>
+        <div class="purif-grid">
+          <div class="form-group">
+            <label>Dividend per share (PKR)</label>
+            <input type="number" min="0" step="any" placeholder="e.g. 16"
+              value="${S.purifDps}" oninput="S.purifDps=this.value;updatePurif(${ir})">
+          </div>
+          <div class="form-group">
+            <label>Your shares held</label>
+            <input type="number" min="0" step="any" placeholder="e.g. 1000"
+              value="${S.purifShares}" oninput="S.purifShares=this.value;updatePurif(${ir})">
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <div class="purif-result" style="width:100%">
+              <div style="font-size:12px;color:var(--warn);font-weight:600;margin-bottom:4px">PURIFICATION DUE</div>
+              <div id="purif-total" class="purif-amount">
+                ${dps ? fmtN(dps * ir) + ' / share' : '—'}
+              </div>
+              ${shares && dps ? `<div style="font-size:12px;color:var(--ink-4);margin-top:4px">Total: PKR ${fmtN(totalPurif)} for ${fmtN(shares)} shares</div>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="flex-row" style="justify-content:space-between;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--ink-4)">Your dividend figures aren't saved — download a personal summary for your records.</span>
+          <button class="btn btn-secondary btn-sm" onclick="downloadPurifSummary(this)">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Purification summary
+          </button>
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <!-- Verdict -->
+    <div class="verdict-banner ${verdictClass} mb-24">
+      <div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:.06em;opacity:.7;margin-bottom:8px">
+          ${f.company_name ? f.company_name.toUpperCase() : 'SCREENING RESULT'}
+          ${f.ticker ? ` · ${f.ticker}` : ''}
+        </div>
+        <div class="verdict-title">${verdictLabel}</div>
+        <div class="verdict-sub">${verdictSub}</div>
+        <div class="flex-row mt-16" style="gap:8px;flex-wrap:wrap">
+          ${tests.filter(t=>t.passed!==null).map(t => `
+            <span style="font-size:12px;background:rgba(255,255,255,${t.passed?'.18':'.10'});color:rgba(255,255,255,${t.passed?'1':'.65'});padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,${t.passed?'.25':'.15'})">
+              ${t.passed ? '✓' : '✗'} ${t.label}
+            </span>`).join('')}
+        </div>
+      </div>
+      <div class="verdict-score">${passCount}/${totalTests}</div>
+    </div>
+
+    <!-- Ratio cards -->
+    <div class="label mb-8">Screening details</div>
+    <div class="ratio-grid mb-24">
+      ${bizCard}
+      ${ratioCards}
+    </div>
+
+    <!-- NLA -->
+    ${nlaHtml}
+
+    <!-- Purification -->
+    ${purifHtml}
+
+    <!-- Extraction details (AI audit trail) -->
+    ${_renderExtractionDetails()}
+
+    <!-- Post-screening options -->
+    <div class="label mb-8">What next?</div>
+    <div class="next-steps mb-24">
+
+      <button class="next-step-card" onclick="go('review')">
+        <div class="nsc-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <div class="nsc-body">
+          <div class="nsc-title">Review &amp; Re-run</div>
+          <div class="nsc-sub">Edit any number and re-screen instantly</div>
+        </div>
+        <svg class="nsc-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+
+      <button class="next-step-card" onclick="openDocsPanel('report')">
+        <div class="nsc-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div class="nsc-body">
+          <div class="nsc-title">View Report PDF</div>
+          <div class="nsc-sub">Branded tear-sheet with ratios, methodology &amp; glossary</div>
+        </div>
+        <svg class="nsc-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+
+      ${_hasSourceDoc() ? `
+      <button class="next-step-card" onclick="openDocsPanel('source')">
+        <div class="nsc-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 22h14a2 2 0 002-2V7.5L14.5 2H6a2 2 0 00-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10M2 19h6"/></svg>
+        </div>
+        <div class="nsc-body">
+          <div class="nsc-title">Source Document</div>
+          <div class="nsc-sub">${_sourceDocLabel()}</div>
+        </div>
+        <svg class="nsc-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>` : ''}
+
+      ${S.storageConfigured ? `
+      <button class="next-step-card" onclick="saveRun()">
+        <div class="nsc-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="nsc-body">
+          <div class="nsc-title">Save to Cloud</div>
+          <div class="nsc-sub">Store this run for future reference</div>
+        </div>
+        <svg class="nsc-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>` : ''}
+
+    </div>
+    ${S.saveError ? `<div class="error-banner mb-16">${S.saveError}</div>` : ''}
+  `;
+
+  // Auto-load doc panel (only if not already loaded to avoid flicker)
+  const wrap = document.getElementById('docs-frame-wrap');
+  if (wrap && !wrap.querySelector('iframe')) {
+    openDocsPanel(S.docsCurrentType || 'report');
+  } else {
+    // Refresh source tab visibility in case extractFile/loadedRun changed
+    const srcTab = document.getElementById('docs-tab-source');
+    if (srcTab) {
+      const hasSource = _hasSourceDoc();
+      srcTab.style.display = hasSource ? 'inline-flex' : 'none';
+      const lbl = document.getElementById('docs-tab-source-label');
+      if (lbl && hasSource) lbl.textContent = _sourceTabLabel();
+    }
+  }
+}
+
+// ── Extraction details (AI audit trail) ──────────────────────────────────
+const _FIELD_LABELS = {
+  total_assets: 'Total Assets',
+  interest_bearing_debt: 'Interest-Bearing Debt',
+  noncompliant_investments: 'Non-Compliant Investments',
+  noncompliant_income: 'Non-Compliant Income',
+  total_revenue: 'Total Revenue',
+  illiquid_assets: 'Illiquid Assets',
+  total_liabilities: 'Total Liabilities',
+  number_of_shares: 'Number of Shares',
+  market_price_per_share: 'Market Price / Share',
+};
+
+function _renderExtractionDetails() {
+  const meta = S.extractMeta;
+  if (!meta) return '';
+
+  const evidence = meta.evidence || [];
+  const model = meta.final_model || meta.model || '';
+  const notes = meta.extraction_notes || '';
+  const currency = S.lastResult?.f?.currency_unit || '';
+
+  const confBadge = c => `<span class="badge conf-${c || 'low'}" style="font-size:10px;padding:1px 6px">${(c || 'low').toUpperCase()}</span>`;
+
+  const rows = evidence.map(e => {
+    const label = _FIELD_LABELS[e.field] || e.field;
+    const val = e.value != null ? fmtN(e.value) : '—';
+    const rawPage = e.source_page;
+    const pageNum = _parsePageNum(rawPage);          // pull the actual number out of any text
+    let page;
+    if (pageNum != null) {
+      const tip = rawPage && String(rawPage) !== String(pageNum) ? String(rawPage) : `Page ${pageNum}`;
+      page = _hasSourceDoc()
+        ? `<button class="page-link" onclick="jumpToSourcePage(${pageNum})" title="Jump to page ${pageNum} — ${_attr(tip)}">p. ${pageNum} ↗</button>`
+        : `<span style="font-size:12px;color:var(--ink-4)">p. ${pageNum}</span>`;
+    } else if (rawPage) {
+      page = `<span style="font-size:12px;color:var(--ink-4)">${rawPage}</span>`;
+    } else {
+      page = '—';
+    }
+    return `<tr>
+      <td style="font-weight:500;white-space:nowrap">${label}</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--ink-4)">${e.source_label || '—'}</td>
+      <td style="font-size:12px;white-space:nowrap">${page}</td>
+      <td style="font-family:var(--mono);font-size:12px;text-align:right">${val}${currency ? '<span style="font-size:10px;color:var(--ink-5);margin-left:3px">'+currency+'</span>' : ''}</td>
+      <td>${confBadge(e.confidence)}</td>
+      <td style="font-size:12px;color:var(--ink-4);max-width:240px">${e.rationale || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const lowCount = evidence.filter(e => e.confidence === 'low').length;
+  const medCount = evidence.filter(e => e.confidence === 'medium').length;
+  const badgeLabel = lowCount ? `${lowCount} low confidence` : medCount ? `${medCount} medium confidence` : `${evidence.length} fields`;
+  const badgeCls = lowCount ? 'conf-low' : medCount ? 'conf-medium' : 'conf-high';
+
+  return `
+    <button class="ext-toggle" onclick="toggleExtraction(this)" type="button">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:2px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Extraction details
+      ${model ? `<span style="font-size:12px;color:var(--ink-5);font-weight:400">· ${model}</span>` : ''}
+      <span class="ext-badge ${badgeCls}">${badgeLabel}</span>
+    </button>
+    <div class="ext-details">
+      ${notes ? `<div style="font-size:13px;color:var(--ink-4);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px">
+        <strong style="color:var(--ink)">AI notes:</strong> ${notes}
+      </div>` : ''}
+      ${rows ? `<div class="card" style="padding:0;overflow:auto;margin-bottom:0">
+        <table class="method-table" style="margin:0;min-width:600px">
+          <thead><tr>
+            <th>Field</th><th>Source label in document</th><th>Page</th><th style="text-align:right">Value</th><th>Confidence</th><th>Rationale</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>` : '<div style="font-size:13px;color:var(--ink-4)">No evidence data available.</div>'}
+    </div>`;
+}
+
+function toggleExtraction(btn) {
+  btn.classList.toggle('open');
+  const details = btn.nextElementSibling;
+  if (details?.classList.contains('ext-details')) details.classList.toggle('open');
+}
+
+function updatePurif(ir) {
+  const dps = num(S.purifDps);
+  const shares = num(S.purifShares);
+  const el = document.getElementById('purif-total');
+  if (!el) return;
+  if (!dps) { el.innerHTML = '—'; return; }
+  const perShare = dps * ir;
+  let html = `${fmtN(perShare)} / share`;
+  if (shares) html += `<div style="font-size:12px;color:var(--ink-4);margin-top:4px">Total: PKR ${fmtN(shares * perShare)} for ${fmtN(shares)} shares</div>`;
+  el.innerHTML = html;
+}
+
+// ── PDF helpers ───────────────────────────────────────────────────────────
+// Payload for the objective compliance report. Personal dividend purification is
+// intentionally excluded — it lives in the separate, ephemeral Purification Summary.
+function _buildPdfPayload() {
+  const { f, ratios } = S.lastResult;
+  const meta = {
+    period: f.period || '',
+    currency_unit: f.currency_unit || '',
+    reporting_period_months: '12',
+    market_price_as_of: '',
+    market_price_source: '',
+    source: f.data_source || '',
+  };
+  const audit = {
+    data_source: f.data_source || 'manual',
+    model: S.extractMeta?.final_model || 'n/a',
+    verified: false,
+    evidence: S.extractMeta?.evidence || [],
+  };
+  return { form: f, meta, purification: null, audit };
+}
+
+// Payload for the on-demand Purification Summary one-pager (personal, not saved).
+function _buildPurifPayload() {
+  const { f, ratios } = S.lastResult;
+  const ir = ratios.income_ratio;             // percentage number, e.g. 3.7
+  const dps = num(S.purifDps);
+  const shares = num(S.purifShares);
+  const purif = {
+    income_ratio: pct(ir),
+    dps: String(S.purifDps || ''),
+    shares: String(S.purifShares || ''),
+    total_dividend: shares && dps ? String(shares * dps) : '',
+    purification_amount: dps ? (dps * (ir || 0) / 100).toFixed(4) : '',
+    total_purification: shares && dps ? (shares * dps * (ir || 0) / 100).toFixed(2) : '',
+  };
+  const meta = {
+    period: f.period || '',
+    currency_unit: f.currency_unit || '',
+    source: f.data_source || '',
+  };
+  return { form: f, meta, purification: purif };
+}
+
+async function _fetchReportPdfBlob() {
+  // Cached per result. The compliance report is objective (no per-user dividends),
+  // so it never needs regenerating for purification changes.
+  if (S.reportPdfUrl) return S.reportPdfUrl;
+  const blob = await apiPdf(_buildPdfPayload());
+  S.reportPdfUrl = URL.createObjectURL(blob);
+  return S.reportPdfUrl;
+}
+
+async function downloadPdf() {
+  if (!S.lastResult) return;
+  try {
+    const url = await _fetchReportPdfBlob();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = _exportFileName();
+    a.click();
+  } catch (err) {
+    alert('PDF error: ' + err.message);
+  }
+}
+
+// On-demand personal one-pager (brief metrics + your dividends). Not saved anywhere.
+async function downloadPurifSummary(btn) {
+  if (!S.lastResult) return;
+  if (!num(S.purifDps)) { alert('Enter your dividend per share first.'); return; }
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  try {
+    const blob = await apiPurifPdf(_buildPurifPayload());
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const c = _docCompanyLabel();
+    a.download = _safeFileName(c ? `Sharia Scope - ${c} - Purification Summary` : 'Sharia Scope - Purification Summary') + '.pdf';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (err) {
+    alert('Could not generate summary: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+}
+
+// ── Document viewer ───────────────────────────────────────────────────────
+
+function _hasSourceDoc() {
+  return !!(S.extractFile || S.loadedRun?.source_path);
+}
+
+// Best-known "Company (TICKER)" for the active doc — used to name files/labels
+// after what's inside, not the raw upload filename like "270829.pdf".
+function _docCompanyLabel() {
+  const f = S.lastResult?.f || S.loadedRun || {};
+  let company = (f.company_name || document.getElementById('fi-company_name')?.value || '').trim();
+  let ticker  = (f.ticker || document.getElementById('fi-ticker')?.value || '').trim().toUpperCase();
+  if (company && ticker) return `${company} (${ticker})`;
+  return company || ticker || '';
+}
+
+// Strip characters that are unsafe in download filenames; keep it readable.
+function _safeFileName(s) {
+  return (s || '').replace(/[^\w\s().\-]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+// Branded export name for the compliance report PDF.
+function _exportFileName() {
+  const c = _docCompanyLabel();
+  const base = c ? `Sharia Scope - ${c} - Compliance Report` : 'Sharia Scope - Compliance Report';
+  return _safeFileName(base) + '.pdf';
+}
+
+// Branded download name for the source document (keeps its original extension).
+function _sourceFileName() {
+  const c = _docCompanyLabel();
+  const orig = S.extractFile?.name || S.loadedRun?.source_filename || 'source.pdf';
+  const ext = (orig.split('.').pop() || 'pdf').toLowerCase();
+  const base = c ? `Sharia Scope - ${c} - Source` : 'Sharia Scope - Source';
+  return _safeFileName(base) + '.' + ext;
+}
+
+// Compact label for the small "Source" tab button (ticker only — avoids overflow).
+function _sourceTabLabel() {
+  const f = S.lastResult?.f || S.loadedRun || {};
+  const ticker = (f.ticker || document.getElementById('fi-ticker')?.value || '').trim().toUpperCase();
+  return ticker ? `Source · ${ticker}` : 'Source';
+}
+
+// On-screen label for the source document (descriptive, falls back to filename).
+function _sourceDocLabel() {
+  const c = _docCompanyLabel();
+  if (c) return `${c} — Source`;
+  if (S.extractFile) return S.extractFile.name;
+  if (S.loadedRun?.source_filename) return S.loadedRun.source_filename;
+  return 'Source document';
+}
+
+// Returns a blob URL for the CURRENTLY uploaded file. If the cached URL was
+// created for a different file (or a saved-run source), it is revoked and a
+// fresh one is made — so the preview can never show a previously-loaded doc.
+function _uploadSourceUrl() {
+  if (!S.extractFile) return null;
+  if (S.sourcePdfUrl && S._srcUrlOwner === S.extractFile) return S.sourcePdfUrl;
+  if (S.sourcePdfUrl) { try { URL.revokeObjectURL(S.sourcePdfUrl); } catch (_) {} }
+  S.sourcePdfUrl = URL.createObjectURL(S.extractFile);
+  S._srcUrlOwner = S.extractFile;
+  return S.sourcePdfUrl;
+}
+
+// Drop any cached source-doc blob URL (call when the active source changes).
+function _resetSourceUrl() {
+  if (S.sourcePdfUrl) { try { URL.revokeObjectURL(S.sourcePdfUrl); } catch (_) {} }
+  S.sourcePdfUrl = null;
+  S._srcUrlOwner = null;
+}
+
+// ── Review screen: source-doc preview + missing-field guidance ─────────────
+const REVIEW_REQUIRED_FIELDS = [
+  'total_assets','total_liabilities','interest_bearing_debt',
+  'noncompliant_investments','noncompliant_income','total_revenue','illiquid_assets',
+];
+
+function setupReviewDoc() {
+  const layout = document.getElementById('review-layout');
+  const panel  = document.getElementById('review-doc-panel');
+  const hasFile = !!S.extractFile;
+  if (panel)  panel.style.display = hasFile ? 'flex' : 'none';
+  if (layout) layout.classList.toggle('no-doc', !hasFile);
+  if (hasFile) {
+    _wireMissingFieldListeners();
+    _flagMissingFields();
+    _loadSourceInReview();
+  } else {
+    _clearMissingFlags();
+  }
+}
+
+function _wireMissingFieldListeners() {
+  REVIEW_REQUIRED_FIELDS.forEach(k => {
+    const el = document.getElementById(`fi-${k}`);
+    if (el && !el._flagWired) {
+      el._flagWired = true;
+      el.addEventListener('input', _flagMissingFields);
+    }
+  });
+}
+
+function _flagMissingFields() {
+  let missing = 0;
+  REVIEW_REQUIRED_FIELDS.forEach(k => {
+    const el = document.getElementById(`fi-${k}`);
+    if (!el) return;
+    const grp = el.closest('.form-group');
+    const empty = el.value === '' || el.value == null;
+    if (grp) grp.classList.toggle('field-missing', empty);
+    if (empty) missing++;
+  });
+  const hint = document.getElementById('review-doc-hint');
+  const hintText = document.getElementById('review-doc-hint-text');
+  if (hint) hint.style.display = missing > 0 ? 'flex' : 'none';
+  if (hintText && missing > 0) {
+    hintText.textContent = `${missing} required figure${missing > 1 ? 's' : ''} still missing — read ${missing > 1 ? 'them' : 'it'} off the document and fill in below.`;
+  }
+  return missing;
+}
+
+function _clearMissingFlags() {
+  REVIEW_REQUIRED_FIELDS.forEach(k => {
+    document.getElementById(`fi-${k}`)?.closest('.form-group')?.classList.remove('field-missing');
+  });
+  const hint = document.getElementById('review-doc-hint');
+  if (hint) hint.style.display = 'none';
+}
+
+function _loadSourceInReview() {
+  const wrap  = document.getElementById('review-doc-wrap');
+  const label = document.getElementById('review-doc-label');
+  if (!wrap || !S.extractFile) return;
+  S.docsCurrentType = 'source';   // so the no-preview fallback's Download targets the source
+  if (label) label.textContent = _sourceDocLabel();
+  if (_isPreviewable(S.extractFile)) {
+    const url = _uploadSourceUrl();
+    const existing = wrap.querySelector('iframe');
+    if (existing && existing.src.startsWith(url.split('#')[0])) return;
+    wrap.innerHTML = `<iframe class="docs-iframe" src="${url}#toolbar=1&navpanes=0"></iframe>`;
+  } else {
+    wrap.innerHTML = _noPreviewHtml(S.extractFile.name);
+  }
+}
+
+function downloadSourceDoc() {
+  if (!S.extractFile) return;
+  const a = document.createElement('a');
+  a.href = _uploadSourceUrl();
+  a.download = _sourceFileName();
+  a.click();
+}
+
+async function openDocsPanel(type) {
+  S.docsCurrentType = type || 'report';
+  const srcTab = document.getElementById('docs-tab-source');
+  if (srcTab) {
+    const hasSource = _hasSourceDoc();
+    srcTab.style.display = hasSource ? 'inline-flex' : 'none';
+    const lbl = document.getElementById('docs-tab-source-label');
+    if (lbl && hasSource) lbl.textContent = _sourceDocLabel().split('/').pop() || 'Source';
+  }
+  _setActiveDocTab(S.docsCurrentType);
+  await _loadDocInPanel(S.docsCurrentType);
+  // On narrow screens scroll panel into view
+  if (window.innerWidth < 1080) {
+    document.getElementById('docs-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function closeDocsPanel() { /* sidebar is always visible in layout */ }
+
+async function switchDoc(type) {
+  S.docsCurrentType = type;
+  _setActiveDocTab(type);
+  await _loadDocInPanel(type);
+}
+
+// Pull a usable page number out of whatever the AI put in source_page —
+// it may be a plain number, "p.44", "page 44", or "Statement of … (p.44)".
+function _parsePageNum(raw) {
+  if (raw == null) return null;
+  if (typeof raw === 'number' && isFinite(raw)) return Math.trunc(raw);
+  const s = String(raw);
+  let m = s.match(/(?:p\.?|pg\.?|pages?)\s*(\d{1,5})/i);   // "p.44", "page 44"
+  if (m) return parseInt(m[1], 10);
+  m = s.match(/\d{1,5}/);                                   // any standalone number
+  return m ? parseInt(m[0], 10) : null;
+}
+
+// Escape a string for safe use inside an HTML attribute (e.g. title="...").
+function _attr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function jumpToSourcePage(page) {
+  if (!_hasSourceDoc()) return;
+  S.docsCurrentType = 'source';
+  _setActiveDocTab('source');
+  const wrap = document.getElementById('docs-frame-wrap');
+  if (!wrap) return;
+  // Resolve the right source URL for the active doc (uploaded file vs saved run)
+  let url = null;
+  if (S.extractFile && _isPreviewable(S.extractFile)) {
+    url = _uploadSourceUrl();
+  } else if (S.loadedRun?.source_path) {
+    await _loadDocInPanel('source');   // fetches + caches this run's source
+    url = S.sourcePdfUrl;
+  }
+  if (url) {
+    wrap.innerHTML = `<iframe class="docs-iframe" src="${url}#page=${page}&toolbar=1&navpanes=0"></iframe>`;
+  }
+}
+
+function _setActiveDocTab(type) {
+  document.getElementById('docs-tab-report')?.classList.toggle('active', type === 'report');
+  document.getElementById('docs-tab-source')?.classList.toggle('active', type === 'source');
+}
+
+async function _loadDocInPanel(type) {
+  const wrap = document.getElementById('docs-frame-wrap');
+  if (!wrap) return;
+
+  if (type === 'source') {
+    // An uploaded file always wins over a loaded run's stored source.
+    if (S.extractFile) {
+      if (_isPreviewable(S.extractFile)) {
+        wrap.innerHTML = `<iframe class="docs-iframe" src="${_uploadSourceUrl()}"></iframe>`;
+      } else {
+        wrap.innerHTML = _noPreviewHtml(S.extractFile.name);
+      }
+    } else if (S.loadedRun?.source_path) {
+      const ownerKey = 'run:' + S.loadedRun.id;
+      const filename = S.loadedRun.source_filename || 'source';
+      // Reuse the cached blob only if it belongs to THIS run.
+      if (S.sourcePdfUrl && S._srcUrlOwner === ownerKey) {
+        wrap.innerHTML = _isPreviewable(filename)
+          ? `<iframe class="docs-iframe" src="${S.sourcePdfUrl}"></iframe>`
+          : _noPreviewHtml(filename);
+        return;
+      }
+      wrap.innerHTML = '<div class="docs-placeholder"><div class="spinner"></div><span>Loading source document…</span></div>';
+      try {
+        const resp = await fetch(`/api/runs/${S.loadedRun.id}/source`);
+        if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+        const blob = await resp.blob();
+        _resetSourceUrl();
+        S.sourcePdfUrl = URL.createObjectURL(blob);
+        S._srcUrlOwner = ownerKey;
+        if (_isPreviewable(filename)) {
+          wrap.innerHTML = `<iframe class="docs-iframe" src="${S.sourcePdfUrl}"></iframe>`;
+        } else {
+          wrap.innerHTML = _noPreviewHtml(filename);
+        }
+      } catch (err) {
+        wrap.innerHTML = `<div class="docs-placeholder" style="color:var(--fail)">Could not load source document: ${err.message}</div>`;
+      }
+    } else {
+      wrap.innerHTML = '<div class="docs-placeholder">No source document stored for this run.</div>';
+    }
+    return;
+  }
+
+  // If iframe already showing this type's content, don't reload
+  const existingIframe = wrap.querySelector('iframe');
+  if (existingIframe && S.docsCurrentType === type &&
+      ((type === 'report' && S.reportPdfUrl && existingIframe.src.startsWith(S.reportPdfUrl.split('#')[0])) ||
+       (type === 'source' && S.sourcePdfUrl && existingIframe.src.startsWith(S.sourcePdfUrl.split('#')[0])))) {
+    return;
+  }
+
+  // Report PDF — try stored report first (for loaded runs), then regenerate
+  if (S.loadedRun?.report_path && !S.reportPdfUrl) {
+    wrap.innerHTML = '<div class="docs-placeholder"><div class="spinner"></div><span>Loading report…</span></div>';
+    try {
+      const resp = await fetch(`/api/runs/${S.loadedRun.id}/report`);
+      if (!resp.ok) throw new Error(await resp.text());
+      const blob = await resp.blob();
+      S.reportPdfUrl = URL.createObjectURL(blob);
+      wrap.innerHTML = `<iframe class="docs-iframe" src="${S.reportPdfUrl}#toolbar=1&navpanes=0"></iframe>`;
+      return;
+    } catch (_) {
+      // Fall through to regenerate if stored report fetch fails
+    }
+  }
+
+  wrap.innerHTML = '<div class="docs-placeholder"><div class="spinner"></div><span>Generating report…</span></div>';
+  try {
+    const url = await _fetchReportPdfBlob();
+    wrap.innerHTML = `<iframe class="docs-iframe" src="${url}#toolbar=1&navpanes=0"></iframe>`;
+  } catch (err) {
+    wrap.innerHTML = `<div class="docs-placeholder" style="color:var(--fail)">Failed to generate report: ${err.message}</div>`;
+  }
+}
+
+// Open whatever PDF is currently shown in the given viewer wrap, full-size in a new tab.
+function openCurrentDocTab(wrapId) {
+  const iframe = document.querySelector('#' + wrapId + ' iframe');
+  const src = iframe && iframe.src ? iframe.src.split('#')[0] : '';
+  if (src && src.startsWith('blob:')) window.open(src, '_blank', 'noopener');
+  else showToast('Nothing to open yet — let the document finish loading.', 'error');
+}
+
+function downloadCurrentDoc() {
+  if (S.docsCurrentType === 'source') {
+    if (S.extractFile) {
+      const a = document.createElement('a');
+      a.href = _uploadSourceUrl();
+      a.download = _sourceFileName();
+      a.click();
+    } else if (S.loadedRun?.source_path) {
+      // Force browser download from backend
+      const a = document.createElement('a');
+      a.href = `/api/runs/${S.loadedRun.id}/source`;
+      a.download = _sourceFileName();
+      a.click();
+    }
+  } else {
+    downloadPdf();
+  }
+}
+
+// ── Save run ──────────────────────────────────────────────────────────────
+async function saveRun() {
+  if (!S.lastResult || S.saving) return;
+  S.saving = true;
+  S.saveError = null;
+  renderResults();
+
+  const { f, tests, failed, compliant, ratios } = S.lastResult;
+  const record = {
+    ...f,
+    status: compliant ? 'compliant' : 'non-compliant',
+    status_label: compliant ? 'Compliant' : 'Non-Compliant',
+    failure_reasons: failed.map(t => t.label),
+    debt_ratio: ratios.debt_ratio,
+    investment_ratio: ratios.investment_ratio,
+    income_ratio: ratios.income_ratio,
+    illiquid_assets_ratio: ratios.illiquid_ratio,
+    net_liquid_assets_ratio: ratios.nla_per_share,
+    extraction_notes: S.extractMeta?.extraction_notes || '',
+    final_model: S.extractMeta?.final_model || '',
+    evidence: S.extractMeta?.evidence || [],   // per-figure references (source label, page, confidence, rationale)
+    app_version: '1.3', rule_version: 'PSX-KMI-Dec2025',
+    // NOTE: dividend purification inputs are intentionally NOT saved — they are
+    // per-investor and ephemeral (see the on-demand Purification Summary one-pager).
+  };
+
+  // Encode source file if one was uploaded this session
+  let source_b64 = null, source_name = null;
+  if (S.extractFile) {
+    try {
+      const buf = await S.extractFile.arrayBuffer();
+      source_b64 = _bufToBase64(buf);
+      source_name = S.extractFile.name;
+    } catch (_) { /* non-fatal */ }
+  }
+
+  // Encode the generated report PDF
+  let report_b64 = null;
+  try {
+    const pdfBlob = await _fetchReportPdfBlob().then(url => fetch(url)).then(r => r.blob());
+    const buf = await pdfBlob.arrayBuffer();
+    report_b64 = _bufToBase64(buf);
+  } catch (_) { /* non-fatal */ }
+
+  try {
+    await apiSaveRun({ record, source_b64, source_name, report_b64 });
+    showToast('Saved to cloud ✓');
+    S.runs = null; // invalidate cache
+  } catch (err) {
+    S.saveError = 'Save failed: ' + err.message;
+    renderResults();
+  } finally {
+    S.saving = false;
+  }
+}
+
+// ── Runs screen ───────────────────────────────────────────────────────────
+async function refreshRuns() {
+  S.runsLoading = true;
+  document.getElementById('runs-content').innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+  try {
+    S.runs = await apiRuns();
+  } catch (err) {
+    S.runs = [];
+    document.getElementById('runs-content').innerHTML = `<div class="error-banner">${err.message}</div>`;
+    return;
+  } finally {
+    S.runsLoading = false;
+  }
+  renderRuns();
+}
+
+function renderRuns() {
+  const el = document.getElementById('runs-content');
+  if (!el) return;
+  if (!S.runs || S.runsLoading) return;
+
+  if (S.runs.length === 0) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <h3>No saved runs yet</h3>
+        <p>Run a screening and click "Save to cloud" to see your history here.</p>
+      </div>`;
+    return;
+  }
+
+  const cards = S.runs.map((r, i) => {
+    const compliant = r.status === 'compliant';
+    const badge = compliant
+      ? '<span class="badge badge-pass">Compliant</span>'
+      : '<span class="badge badge-fail">Non-Compliant</span>';
+    const date = r.created_at ? fmtDate(r.created_at) : '';
+    return `
+      <div class="run-card" data-run-idx="${i}" style="cursor:pointer">
+        <div class="run-card-top">
+          <div>
+            <div class="run-name">${r.company_name || 'Unknown'}</div>
+            <div class="run-ticker">${r.ticker || ''}</div>
+          </div>
+          ${badge}
+        </div>
+        <div class="run-date">${date}</div>
+        <div class="run-card-footer">
+          <span style="font-size:12px;color:var(--ink-5)">${r.period || ''}</span>
+          <button class="btn btn-danger btn-sm" data-run-id="${r.id}">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="runs-grid">${cards}</div>`;
+
+  // Wire up clicks after innerHTML is set (avoids inline-handler quoting issues)
+  el.querySelectorAll('.run-card').forEach(card => {
+    card.addEventListener('click', e => {
+      const delBtn = e.target.closest('[data-run-id]');
+      if (delBtn) {
+        e.stopPropagation();
+        deleteRun(delBtn.dataset.runId, delBtn);
+        return;
+      }
+      loadRun(S.runs[parseInt(card.dataset.runIdx)]);
+    });
+  });
+}
+
+function loadRun(r) {
+  // Restore the extraction references (evidence/notes/model) that were saved with
+  // the run, so the "Extraction details" table reappears for saved runs.
+  if ((r.evidence && r.evidence.length) || r.extraction_notes || r.final_model) {
+    S.extractMeta = {
+      evidence: r.evidence || [],
+      extraction_notes: r.extraction_notes || '',
+      final_model: r.final_model || '',
+    };
+  } else {
+    S.extractMeta = null;
+  }
+  S.extractFile = null;
+  _resetSourceUrl();   // drop any prior source blob so this run fetches its own
+  S.loadedRun = r;  // keep reference for source/report doc fetch
+  if (S.reportPdfUrl) { URL.revokeObjectURL(S.reportPdfUrl); S.reportPdfUrl = null; }
+  // Dividend purification is per-investor and not persisted — start blank each load.
+  S.purifDps = ''; S.purifShares = '';
+  fillFormFromData(r);
+  runScreening();   // screen immediately → results screen
+}
+
+async function deleteRun(id, btn) {
+  if (!confirm('Delete this saved run?')) return;
+  btn.disabled = true;
+  try {
+    await apiDeleteRun(id);
+    S.runs = S.runs.filter(r => r.id !== id);
+    renderRuns();
+    showToast('Deleted');
+  } catch (err) {
+    alert('Delete failed: ' + err.message);
+    btn.disabled = false;
+  }
+}
+
+// ── Live price ────────────────────────────────────────────────────────────
+async function fetchLivePrice() {
+  const ticker = document.getElementById('fi-ticker')?.value.trim();
+  if (!ticker) { alert('Enter a ticker first'); return; }
+  const btn = document.getElementById('btn-fetch-price');
+  if (btn) { btn.disabled = true; btn.textContent = 'Fetching…'; }
+  try {
+    const q = await apiPrice(ticker);
+    const el = document.getElementById('fi-market_price_per_share');
+    if (el) el.value = q.price;
+    showToast(`Price updated: PKR ${q.price} (${q.as_of || 'live'})`);
+  } catch (err) {
+    alert('Could not fetch price: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Fetch live PSX price'; }
+  }
+}
+
+// ── Glossary ──────────────────────────────────────────────────────────────
+function openGlossary() {
+  document.getElementById('glossary-backdrop')?.classList.add('open');
+  document.getElementById('glossary-drawer')?.classList.add('open');
+}
+
+function closeGlossary() {
+  document.getElementById('glossary-backdrop')?.classList.remove('open');
+  document.getElementById('glossary-drawer')?.classList.remove('open');
+}
+
+// ── Tests accordion ───────────────────────────────────────────────────────
+function toggleTest(header) {
+  const body = header.nextElementSibling;
+  if (!body) return;
+  body.classList.toggle('open');
+  const icon = header.querySelector('svg');
+  if (icon) icon.style.transform = body.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let _toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeGlossary();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+// Inject FAQPage structured data (AEO) from the single FAQ_DATA source — no
+// duplicate copy to maintain. Googlebot renders JS, so this is picked up.
+function _injectFaqJsonLd() {
+  try {
+    if (typeof FAQ_DATA === 'undefined') return;
+    const qa = FAQ_DATA.flatMap(g => g.items).map(([q, a]) => ({
+      "@type": "Question",
+      "name": q,
+      "acceptedAnswer": { "@type": "Answer", "text": a }
+    }));
+    const data = { "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": qa };
+    const s = document.createElement('script');
+    s.type = 'application/ld+json';
+    s.textContent = JSON.stringify(data);
+    document.head.appendChild(s);
+  } catch (e) {}
+}
+
+async function init() {
+  _injectFaqJsonLd();
+  go('home');
+  await apiStatus();
+}
+
+init();
+</script>
+</body>
+</html>

@@ -303,6 +303,20 @@ def read_costs(cred_dict: dict) -> dict:
         return {}
 
 
+def get_run(cred_dict: dict, run_id: str) -> dict | None:
+    """Return a single run document, or None if it doesn't exist."""
+    client = _firestore(cred_dict)
+    try:
+        snap = client.collection(COLLECTION).document(run_id).get()
+        if not snap.exists:
+            return None
+        row = snap.to_dict() or {}
+        row["id"] = snap.id
+        return row
+    except Exception as exc:
+        raise StorageError(_friendly(exc, "firestore")) from exc
+
+
 def list_runs(cred_dict: dict, limit: int = 100) -> list[dict]:
     """Return recent saved runs (metadata only), newest first."""
     from firebase_admin import firestore

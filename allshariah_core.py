@@ -307,11 +307,13 @@ def evaluate_metric_rules(row: dict[str, object]) -> list[MetricResult]:
     results.append(
         MetricResult(
             key="net_liquid_assets_ratio",
-            label="Net Liquid Assets Check",
+            label="Net Liquid Assets / share (advisory)",
             value=nla_value,
-            threshold="NLA < share price",
+            threshold="NLA per share < market price",
             passed=nla_passed,
-            meaning="Net liquid assets should be lower than the share price used in the source report.",
+            meaning=("Advisory KMI indicator (not one of the five tests). Net liquid assets per "
+                     "share should stay below the market price. A negative value is normal and "
+                     "passes — it means the company is not a thinly-veiled cash pile."),
         )
     )
     return results
@@ -382,13 +384,19 @@ def compute_ratios(raw: RawFinancials) -> dict[str, object]:
         net_liquid_assets = raw.total_assets - raw.illiquid_assets - raw.total_liabilities
         nla_per_share = net_liquid_assets / raw.number_of_shares
 
+    # A missing non-compliant figure means the company has no such item (no
+    # interest-bearing investments / no prohibited income) — i.e. zero, a pass.
+    # Only the denominators (total assets/revenue) are genuinely "required".
+    nc_invest = 0.0 if raw.noncompliant_investments is None else raw.noncompliant_investments
+    nc_income = 0.0 if raw.noncompliant_income is None else raw.noncompliant_income
+
     return {
         "ticker": raw.ticker,
         "company_name": raw.company_name,
         "objective_status": "Compliant" if raw.business_compliant else "Non-Compliant",
         "debt_ratio": _ratio(raw.interest_bearing_debt, raw.total_assets),
-        "investment_ratio": _ratio(raw.noncompliant_investments, raw.total_assets),
-        "income_ratio": _ratio(raw.noncompliant_income, raw.total_revenue),
+        "investment_ratio": _ratio(nc_invest, raw.total_assets),
+        "income_ratio": _ratio(nc_income, raw.total_revenue),
         "illiquid_assets_ratio": _ratio(raw.illiquid_assets, raw.total_assets),
         "net_liquid_assets_ratio": nla_per_share,
         "share_price": raw.market_price_per_share,
@@ -420,12 +428,19 @@ def screen_metrics(row: pd.Series | dict[str, object]) -> CompanyEvaluation:
         )
 
     metric_results = evaluate_metric_rules(row_dict)
+    # The Net Liquid Assets check is ADVISORY (a KMI fallback indicator), not one of
+    # the five pass/fail tests — it must never on its own force a failure or a
+    # "Review Required". This mirrors the on-screen result, which excludes it too.
+    _ADVISORY = {"net_liquid_assets_ratio"}
     failure_reasons = [
         f"{result.label} breaches {result.threshold}."
         for result in metric_results
-        if result.passed is False
+        if result.passed is False and result.key not in _ADVISORY
     ]
-    missing_metrics = [result.label for result in metric_results if result.passed is None]
+    missing_metrics = [
+        result.label for result in metric_results
+        if result.passed is None and result.key not in _ADVISORY
+    ]
 
     if missing_metrics:
         return CompanyEvaluation(
