@@ -1,14 +1,16 @@
 # Sharia Scope
 
-Sharia Scope analyzes **any company's** Shariah compliance from its financial
+Sharia Scope screens **any company** for Shariah compliance from its financial
 statements. Give it a company's annual/quarterly numbers — typed in, or read
-automatically from an uploaded report by Claude — and it computes the six
+automatically from an uploaded report by Claude — and it computes the five
 PSX/KMI screening ratios, returns a compliant / non-compliant verdict with the
-reasons, runs a dividend-purification calculation, and produces a PDF tear-sheet.
+reasons, runs a dividend-purification calculation, and produces a branded PDF
+tear-sheet. It is a **calculator, not a lookup table**: the verdict is computed
+purely from the figures you supply — no pre-approved company list.
 
-It is **not** a lookup over a fixed list. The bundled Meezan index sheet is used
-only to *validate* the analyzer (backtest its verdicts against Meezan's official
-rulings) — it is never the source of truth for a live screen.
+The app is a **FastAPI backend** (`server.py`) serving a single-page app
+(`static/index.html`). All screening runs instantly in the browser; the server
+handles AI extraction, PDF generation, and optional cloud saves.
 
 ## Run
 
@@ -16,64 +18,63 @@ rulings) — it is never the source of truth for a live screen.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-streamlit run app.py
+python server.py            # serves on $PORT (default 8501); binds 0.0.0.0
 ```
 
-## The three tabs
+Then open http://localhost:8501.
 
-- **🔍 Analyze a company** — enter the raw line items manually, or upload a
-  financial statement (PDF/image) and click *Extract with Claude* to pre-fill
-  them. Then *Run Shariah screening* for the verdict, ratio dashboard, failure
-  reasons, dividend-purification calculator, and a downloadable PDF tear-sheet.
-- **✅ Validation** — runs the analyzer across all ~500 companies in Meezan's
-  published KMI All-Share Islamic Index and reports how often its computed
-  verdict matches the official ruling (currently ~97% agreement; the remaining
-  disagreements are companies Meezan granted a documented manual exception).
-- **📖 Methodology** — the thresholds, formulas, business screen, purification
-  formula, sources, and disclaimer.
+## Screens
 
-## AI extraction (optional)
+- **Analyze** — upload a financial statement (PDF / image / Excel) and Claude
+  extracts the figures, or enter the line items manually. Then screen for the
+  verdict, ratio cards, failure reasons, dividend-purification calculator, the
+  source document + report viewer, and a downloadable PDF tear-sheet.
+- **Methodology** — thresholds, formulas, the business screen, purification, and
+  the disclaimer.
+- **FAQ** — Shariah-screening basics, ratios, purification, and how the tool works.
+- **Saved Runs** — reopen any archived run (when cloud saves are enabled).
 
-The formula engine is fully offline and deterministic. AI extraction is a
-convenience: add a Claude API key in the sidebar (or set `ANTHROPIC_API_KEY`),
-upload a statement, and Claude pulls the line items for you to verify. Without a
-key, everything still works via manual entry.
+## AI extraction
+
+The screening engine is fully offline and deterministic. AI extraction is a
+convenience layer with three ways to supply a key:
+
+- **Anthropic (default)** — set `ANTHROPIC_API_KEY` on the server, or, if no
+  server key is set, enter your own key in the app (kept in the browser session
+  only, sent per-request, never stored server-side).
+- **AWS Bedrock** — set `AI_PROVIDER=bedrock` plus `AWS_ACCESS_KEY_ID` /
+  `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` (optionally `BEDROCK_MODEL`). No code
+  change — provider is chosen at runtime from the environment.
+
+Without any key, everything still works via manual entry.
 
 ## Saving runs (optional)
 
-Every run can be archived in full to Firebase — **inputs, computed outputs, the
-source statement (if uploaded), and the generated PDF tear-sheet**. It's entirely
-optional; without it the app is fully offline. To turn it on:
-
-1. In the Firebase console (your project), create a **Firestore database** (Native mode)
-   and enable **Cloud Storage** (this creates the storage bucket).
-2. Project settings → Service accounts → **Generate new private key** (downloads a JSON).
-3. Make the key available one of three ways: drop the file in the project root as
-   `firebase-service-account.json` (git-ignored); set `GOOGLE_APPLICATION_CREDENTIALS`
-   to its path; or, on a host where secrets are strings, put the whole JSON in the
-   `FIREBASE_SERVICE_ACCOUNT` env var. You can also just upload it in the app sidebar.
-
-Then a **Save** button appears after each screening (metadata → Firestore, files →
-Cloud Storage), and the **Saved** tab lets you reopen any run: download its source
-statement and tear-sheet, or *Load* its inputs back into the Analyze form. If uploads
-fail, set the exact bucket name (Console → Storage) in the sidebar.
+Each run can be archived to Firebase — **inputs, computed outputs, the source
+statement, and the generated PDF**. Without it the app is fully functional. To
+enable: create a Firestore database (Native mode) + Cloud Storage in your
+Firebase project, generate a service-account key, and provide it via
+`FIREBASE_SA_JSON` / `FIREBASE_SERVICE_ACCOUNT` (JSON string), a git-ignored
+`firebase-service-account.json`, or `GOOGLE_APPLICATION_CREDENTIALS`. A **Save**
+button then appears after each screening, and **Saved Runs** lets you reopen any
+run (source + report + inputs).
 
 ## Deploying (Replit / cloud)
 
-The app reads all credentials from environment variables, so on a host like Replit
-you set them as **Secrets** — no secret ever lives in the repo:
+`.replit` runs `uvicorn server:app --host 0.0.0.0 --port 5000`. Credentials come
+from environment **Secrets** — nothing secret lives in the repo:
 
 | Secret | Purpose |
 | --- | --- |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | AWS Bedrock extraction |
-| `ANTHROPIC_API_KEY` | Anthropic API extraction (alternative to Bedrock) |
-| `FIREBASE_SERVICE_ACCOUNT` | the service-account JSON content, for Save/History |
-| `APP_PASSWORD` | when set, the app requires this password before anything loads |
+| `ANTHROPIC_API_KEY` | Anthropic extraction |
+| `AI_PROVIDER=bedrock` + `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | AWS Bedrock extraction |
+| `FIREBASE_SA_JSON` | service-account JSON content, for Save/History |
+| `PUBLIC_BASE_URL` | canonical/OG/sitemap base URL (defaults to the Replit domain) |
+| `APP_PASSWORD` | when set, gates the app behind a password |
 
-Two host notes: bind the server to `0.0.0.0` (e.g. `--server.address 0.0.0.0`), since
-localhost can't be proxied; and **always set `APP_PASSWORD` on a public deploy** — the
-app has no per-user login and bills your AWS/Anthropic account, so the password is what
-stops strangers from running up the cost or reaching your data.
+**Always set `APP_PASSWORD` on a public deploy** — the app has no per-user login
+and bills your Anthropic/AWS account, so the password is what stops strangers
+from running up cost or reaching your data.
 
 ## Screening rules (PSX / KMI)
 
@@ -85,42 +86,37 @@ Computed from raw financials:
 | Non-compliant investments | non-Shariah investments ÷ total assets | `< 33%` |
 | Non-compliant income | non-Shariah income ÷ total revenue | `< 5%` |
 | Illiquid assets | illiquid assets ÷ total assets | `≥ 25%` |
-| Net liquid assets / share | (assets − illiquid − liabilities) ÷ shares | `< market price` |
+| Net liquid assets / share (advisory) | (assets − illiquid − liabilities) ÷ shares | `< market price` |
 
-A business that is non-compliant by nature (conventional banking, insurance,
-alcohol, tobacco, gambling, etc.) is screened out by sector before any ratio is
-computed.
+The five core tests determine the verdict; the net-liquid-assets check is an
+advisory KMI indicator only. A business that is non-compliant by nature
+(conventional banking, insurance, alcohol, tobacco, gambling, etc.) is screened
+out by sector before any ratio is computed.
 
 ## Project layout
 
 ```
-app.py                 Streamlit UI (Analyze / Validation / Methodology)
-allshariah_core.py     Ratio computation + screening engine + backtest
-ai_extract.py          Claude-API extraction of line items from statements
-report.py              PDF tear-sheet generator (reportlab)
-data/
-  kmi_all_share_index_dec2025.csv   Meezan index sheet — validation oracle only
-scripts/parse_index_pdf.py          One-time PDF -> validation-CSV parser
-tests/test_core.py     Unit tests for the engine
-```
-
-To regenerate the validation sheet from an official index PDF:
-
-```bash
-pdftotext -layout All-Share-Islamic-Index.pdf /tmp/asii.txt
-python scripts/parse_index_pdf.py /tmp/asii.txt data/kmi_all_share_index_dec2025.csv \
-    --source "All-Share-Islamic-Index.pdf" --period "Period ended December 2025"
+server.py            FastAPI backend (extract / PDF / runs / SEO) + serves the SPA
+static/index.html    Single-page app (Analyze / Methodology / FAQ / Saved Runs)
+static/              favicon, web manifest, OG image
+allshariah_core.py   Ratio computation + screening engine
+ai_extract.py        Claude / Bedrock extraction of line items from statements
+report.py            PDF tear-sheet + purification-summary generator (reportlab)
+market_data.py       Live PSX price lookup (yfinance)
+storage.py           Firebase Firestore + Cloud Storage (optional)
+tests/test_core.py   Unit tests for the engine
 ```
 
 ## Tests
 
 ```bash
+pip install -r requirements-dev.txt
 pytest
 ```
 
 ## Disclaimer
 
-Educational prototype. Verdicts are computed from the figures you enter and are
-not investment advice, a religious ruling, or an official PSX/KMI screening
-service. Always verify figures against audited statements and consult a
-qualified Shariah advisor.
+Educational tool. Verdicts are computed from the figures you enter and are not
+investment advice, a religious ruling, or an official PSX/KMI screening service.
+Always verify figures against audited statements and consult a qualified Shariah
+advisor.
