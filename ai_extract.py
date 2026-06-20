@@ -16,10 +16,13 @@ from pathlib import Path
 from allshariah_core import RawFinancials
 
 DEFAULT_MODEL = "claude-opus-4-8"
-# Amazon Bedrock uses provider-prefixed model IDs. Cross-region inference may
-# require a regional prefix (e.g. "us.anthropic.claude-opus-4-8") depending on
-# the account — the sidebar exposes this as an editable field.
+# Current Anthropic models on Bedrock must be invoked via a cross-region
+# inference profile (region-group prefix, e.g. "eu.anthropic.claude-opus-4-8" in
+# Frankfurt), not the bare foundation-model ID. The prefix is derived from the
+# region automatically (see _bedrock_model_id); override the whole ID with the
+# BEDROCK_MODEL env var if needed.
 DEFAULT_BEDROCK_MODEL = "anthropic.claude-opus-4-8"
+DEFAULT_BEDROCK_REGION = "eu-central-1"   # Frankfurt
 PROVIDER_ANTHROPIC = "anthropic"
 PROVIDER_BEDROCK = "bedrock"
 
@@ -229,6 +232,18 @@ def _region_prefix(region: str) -> str:
     if r.startswith("ap"):
         return "apac."
     return "us."
+
+
+def _bedrock_model_id(model: str | None, region: str | None) -> str:
+    """Turn a bare Bedrock foundation-model ID into the cross-region inference
+    profile ID required for on-demand calls (e.g. 'eu.anthropic.claude-opus-4-8'
+    in Frankfurt). IDs that already carry a region prefix are returned as-is."""
+    m = (model or DEFAULT_BEDROCK_MODEL).strip()
+    if m.startswith(("us.", "eu.", "apac.")):
+        return m
+    if m.startswith("anthropic."):
+        return _region_prefix(region or DEFAULT_BEDROCK_REGION) + m
+    return m
 
 
 # Cheapest → most capable. Smart extraction starts low and escalates only if
@@ -455,7 +470,7 @@ def build_client(
             raise ExtractionError(
                 "AWS Bedrock support requires boto3. Install it with: pip install boto3"
             )
-        kwargs = {"aws_region": aws["aws_region"] or _aws_default_region() or "us-east-1"}
+        kwargs = {"aws_region": aws["aws_region"] or _aws_default_region() or DEFAULT_BEDROCK_REGION}
         # If explicit keys are given use them; otherwise let boto3 resolve the
         # default credential chain (~/.aws, env, instance role).
         if aws["aws_access_key"] and aws["aws_secret_key"]:
@@ -882,7 +897,13 @@ def smart_extract(
     final_model = None
     last_error = None
 
-    for current_model in _models_to_try(model, provider, ladder, escalate):
+    candidate_models = _models_to_try(model, provider, ladder, escalate)
+    if provider == PROVIDER_BEDROCK:
+        _aws = resolve_aws(aws_access_key, aws_secret_key, aws_region, aws_session_token)
+        _region = _aws["aws_region"] or _aws_default_region() or DEFAULT_BEDROCK_REGION
+        candidate_models = [_bedrock_model_id(m, _region) for m in candidate_models]
+
+    for current_model in candidate_models:
         try:
             current_financials, current_meta = _extract_once(client, current_model, content_block)
         except ExtractionError as exc:
