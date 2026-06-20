@@ -1,0 +1,13 @@
+{
+  "name": "Sharia Scope — PSX Shariah Compliance Calculator",
+  "short_name": "Sharia Scope",
+  "description": "Screen any PSX-listed company for Shariah (AAOIFI / KMI) compliance and calculate dividend purification.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F4F5F2",
+  "theme_color": "#0C5C45",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

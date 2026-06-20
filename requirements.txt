@@ -1,4 +1,7 @@
 streamlit>=1.35
+fastapi>=0.110
+uvicorn[standard]>=0.28
+python-multipart>=0.0.9
 pandas>=2.2
 openpyxl>=3.1
 anthropic>=0.49
