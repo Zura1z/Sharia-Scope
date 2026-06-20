@@ -184,6 +184,27 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .nav-link.active { background: var(--green-lt); color: var(--green); font-weight: 600; }
 .nav-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
 #nav-status { display: flex; gap: 6px; }
+.nav-burger { display: none; align-items: center; justify-content: center; width: 38px; height: 34px; border-radius: 8px; color: var(--ink-3); flex-shrink: 0; }
+.nav-burger:hover { background: var(--green-lt); color: var(--green); }
+.nav-link-mobileonly { display: none; }
+
+/* Mobile nav: single row (logo + status + burger); links drop down on tap. */
+@media (max-width: 720px) {
+  .nav-logo { margin-right: auto; }
+  .logo-sub { display: none; }
+  .nav-burger { display: inline-flex; }
+  .nav-right > .btn-ghost { display: none; }   /* Glossary moves into the dropdown */
+  .nav-links {
+    position: absolute; top: var(--nav-h); left: 0; right: 0; z-index: 99;
+    flex-direction: column; gap: 2px; flex: none;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-lg); padding: 8px var(--app-gut) 12px;
+    display: none;
+  }
+  #topnav.nav-open .nav-links { display: flex; }
+  .nav-link { padding: 12px; border-radius: 8px; font-size: 15px; }
+  .nav-link-mobileonly { display: block; }
+}
 .status-dot {
   display: flex; align-items: center; gap: 5px;
   font-size: 11.5px; font-weight: 500; padding: 3px 9px;
@@ -681,8 +702,8 @@ img.doc-real { object-fit: contain; background: var(--bg); }
 .field-flag { font-size: 11px; font-weight: 600; color: #92600A; margin-left: 6px; }
 @media (max-width: 1080px) {
   .review-layout, .review-layout.no-doc { grid-template-columns: 1fr; justify-content: stretch; }
-  .review-doc { position: static; height: auto; order: -1; }
-  .review-doc .docs-iframe { height: 480px; }
+  .review-doc { position: static; height: auto; }  /* form first, source doc below */
+  .review-doc .docs-iframe { height: 460px; }
 }
 /* Extraction details */
 .ext-toggle { display: flex; align-items: center; gap: 8px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 16px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--ink-4); margin-bottom: 8px; }
@@ -729,15 +750,19 @@ img.doc-real { object-fit: contain; background: var(--bg); }
         <div class="logo-sub">PSX · KMI SCREENING</div>
       </div>
     </a>
-    <div class="nav-links">
+    <div class="nav-links" id="nav-links">
       <a href="#" class="nav-link" data-nav="home"        onclick="return go('home')">Analyze</a>
       <a href="#" class="nav-link" data-nav="methodology" onclick="return go('methodology')">Methodology</a>
       <a href="#" class="nav-link" data-nav="faq"         onclick="return go('faq')">FAQ</a>
       <a href="#" class="nav-link" data-nav="runs"        onclick="return go('runs')">Saved Runs</a>
+      <a href="#" class="nav-link nav-link-mobileonly" onclick="closeNavMenu();openGlossary();return false">Glossary</a>
     </div>
     <div class="nav-right">
       <button class="btn-ghost btn-sm" onclick="openGlossary()">Glossary</button>
       <div id="nav-status"></div>
+      <button class="nav-burger" id="nav-burger" aria-label="Menu" aria-expanded="false" onclick="toggleNavMenu()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
   </div>
 </nav>
@@ -1494,7 +1519,24 @@ async function apiPrice(ticker) {
 
 
 // ── Navigation ────────────────────────────────────────────────────────────
+// ── Mobile nav dropdown ─────────────────────────────────────────────────────
+function toggleNavMenu() {
+  const nav = document.getElementById('topnav');
+  const open = nav.classList.toggle('nav-open');
+  document.getElementById('nav-burger')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeNavMenu() {
+  document.getElementById('topnav')?.classList.remove('nav-open');
+  document.getElementById('nav-burger')?.setAttribute('aria-expanded', 'false');
+}
+// Close the dropdown when tapping outside it.
+document.addEventListener('click', (e) => {
+  const nav = document.getElementById('topnav');
+  if (nav?.classList.contains('nav-open') && !nav.contains(e.target)) closeNavMenu();
+});
+
 function go(screen) {
+  closeNavMenu();   // close the mobile dropdown on navigation
   document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
   document.getElementById(`scr-${screen}`)?.classList.add('active');
   S.screen = screen;
@@ -2121,7 +2163,7 @@ function renderResults() {
         <svg class="nsc-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
 
-      <button class="next-step-card" onclick="openDocsPanel('report')">
+      <button class="next-step-card" onclick="openDocsPanel('report', true)">
         <div class="nsc-icon">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </div>
@@ -2133,7 +2175,7 @@ function renderResults() {
       </button>
 
       ${_hasSourceDoc() ? `
-      <button class="next-step-card" onclick="openDocsPanel('source')">
+      <button class="next-step-card" onclick="openDocsPanel('source', true)">
         <div class="nsc-icon">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 22h14a2 2 0 002-2V7.5L14.5 2H6a2 2 0 00-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10M2 19h6"/></svg>
         </div>
@@ -2514,20 +2556,21 @@ function downloadSourceDoc() {
   a.click();
 }
 
-async function openDocsPanel(type) {
+async function openDocsPanel(type, scrollToPanel = false) {
   S.docsCurrentType = type || 'report';
   const srcTab = document.getElementById('docs-tab-source');
   if (srcTab) {
     const hasSource = _hasSourceDoc();
     srcTab.style.display = hasSource ? 'inline-flex' : 'none';
     const lbl = document.getElementById('docs-tab-source-label');
-    if (lbl && hasSource) lbl.textContent = _sourceDocLabel().split('/').pop() || 'Source';
+    if (lbl && hasSource) lbl.textContent = _sourceTabLabel();
   }
   _setActiveDocTab(S.docsCurrentType);
   await _loadDocInPanel(S.docsCurrentType);
-  // On narrow screens scroll panel into view
-  if (window.innerWidth < 1080) {
-    document.getElementById('docs-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // Only scroll to the panel on an explicit user action (not the initial auto-load),
+  // and only when the layout is stacked (the doc panel sits below the results).
+  if (scrollToPanel && window.matchMedia('(max-width: 1080px)').matches) {
+    document.getElementById('docs-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 
@@ -2574,6 +2617,10 @@ async function jumpToSourcePage(page) {
   }
   if (url) {
     wrap.innerHTML = `<iframe class="docs-iframe" src="${url}#page=${page}&toolbar=1&navpanes=0"></iframe>`;
+    // On stacked (mobile) layouts the viewer sits below — bring it into view.
+    if (window.matchMedia('(max-width: 1080px)').matches) {
+      document.getElementById('docs-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 }
 
