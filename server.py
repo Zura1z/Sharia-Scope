@@ -106,6 +106,17 @@ def _ai_ready() -> bool:
     return bool(_api_key()) or _bedrock_ready()
 
 
+def _request_ai_ready(provider: str, user_api_key: str | None = None) -> bool:
+    """AI readiness for a single extraction request, including a BYO Anthropic key."""
+    if provider == ai_extract.PROVIDER_BEDROCK:
+        return _bedrock_ready()
+    return bool(_api_key() or (user_api_key.strip() if user_api_key else None))
+
+
+def _no_ai_key_message() -> str:
+    return "No AI key available — set ANTHROPIC_API_KEY on the server, enter your own Anthropic key in the app, or explicitly set AI_PROVIDER=bedrock with AWS credentials."
+
+
 def _fb_cred() -> dict | None:
     raw = os.environ.get("FIREBASE_SA_JSON", "").strip()
     if raw:
@@ -166,6 +177,9 @@ async def extract(
     x_anthropic_key: str | None = Header(None, alias="X-Anthropic-Key"),
 ) -> dict:
     provider = _ai_provider()
+    if not _request_ai_ready(provider, x_anthropic_key):
+        raise HTTPException(400, _no_ai_key_message())
+
     file_bytes = await file.read()
 
     if provider == ai_extract.PROVIDER_BEDROCK:
@@ -183,7 +197,7 @@ async def extract(
         # The user key is used only for this request — never logged or persisted.
         api_key = _api_key() or (x_anthropic_key.strip() if x_anthropic_key else None)
         if not api_key:
-            raise HTTPException(400, "No AI key available — set ANTHROPIC_API_KEY on the server, enter your own Anthropic key in the app, or explicitly set AI_PROVIDER=bedrock with AWS credentials.")
+            raise HTTPException(400, _no_ai_key_message())
         kwargs = dict(provider=ai_extract.PROVIDER_ANTHROPIC, api_key=api_key)
 
     try:

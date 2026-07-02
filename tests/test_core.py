@@ -247,6 +247,17 @@ def test_server_without_any_ai_credentials_is_not_ready(monkeypatch):
     assert server._ai_ready() is False
 
 
+def test_extract_request_preflight_includes_session_key(monkeypatch):
+    import ai_extract
+    import server
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("AI_PROVIDER", raising=False)
+
+    assert server._request_ai_ready(ai_extract.PROVIDER_ANTHROPIC, None) is False
+    assert server._request_ai_ready(ai_extract.PROVIDER_ANTHROPIC, "sk-ant-test") is True
+
+
 def test_is_complete_requires_expected_artifacts():
     import storage
 
