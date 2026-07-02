@@ -78,30 +78,31 @@ def _api_key() -> str | None:
 
 
 def _bedrock_ready() -> bool:
-    """True if AWS Bedrock is usable: explicitly opted in, or AWS creds are present."""
-    if os.environ.get("AI_PROVIDER", "").strip().lower() == ai_extract.PROVIDER_BEDROCK:
-        return True
+    """True if AWS Bedrock is explicitly selected and credentials are available."""
+    if os.environ.get("AI_PROVIDER", "").strip().lower() != ai_extract.PROVIDER_BEDROCK:
+        return False
     aws = ai_extract.resolve_aws()
-    return bool(aws.get("aws_access_key") and aws.get("aws_secret_key"))
+    return ai_extract.credentials_present(
+        ai_extract.PROVIDER_BEDROCK,
+        aws_access_key=aws.get("aws_access_key"),
+        aws_secret_key=aws.get("aws_secret_key"),
+        aws_region=aws.get("aws_region"),
+    )
 
 
 def _ai_provider() -> str:
     """Which AI provider the server should use for extraction.
 
-    Set AI_PROVIDER=bedrock to force Bedrock; otherwise Anthropic is used when an
-    Anthropic key exists, falling back to Bedrock if only AWS creds are present.
+    Set AI_PROVIDER=bedrock to opt into Bedrock; otherwise Anthropic is the
+    default provider, even when AWS credentials are present.
     """
     if os.environ.get("AI_PROVIDER", "").strip().lower() == ai_extract.PROVIDER_BEDROCK:
-        return ai_extract.PROVIDER_BEDROCK
-    if _api_key():
-        return ai_extract.PROVIDER_ANTHROPIC
-    if _bedrock_ready():
         return ai_extract.PROVIDER_BEDROCK
     return ai_extract.PROVIDER_ANTHROPIC
 
 
 def _ai_ready() -> bool:
-    """Server-side AI readiness — an Anthropic env key OR a configured Bedrock."""
+    """Server-side AI readiness from Anthropic, or explicitly selected Bedrock."""
     return bool(_api_key()) or _bedrock_ready()
 
 
@@ -182,7 +183,7 @@ async def extract(
         # The user key is used only for this request — never logged or persisted.
         api_key = _api_key() or (x_anthropic_key.strip() if x_anthropic_key else None)
         if not api_key:
-            raise HTTPException(400, "No AI key available — set ANTHROPIC_API_KEY (or AWS creds with AI_PROVIDER=bedrock) on the server, or enter your own Anthropic key in the app.")
+            raise HTTPException(400, "No AI key available — set ANTHROPIC_API_KEY on the server, enter your own Anthropic key in the app, or explicitly set AI_PROVIDER=bedrock with AWS credentials.")
         kwargs = dict(provider=ai_extract.PROVIDER_ANTHROPIC, api_key=api_key)
 
     try:
