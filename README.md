@@ -42,9 +42,9 @@ convenience layer with three ways to supply a key:
 - **Anthropic (default)** — set `ANTHROPIC_API_KEY` on the server, or, if no
   server key is set, enter your own key in the app (kept in the browser session
   only, sent per-request, never stored server-side).
-- **AWS Bedrock** — set `AI_PROVIDER=bedrock` plus `AWS_ACCESS_KEY_ID` /
-  `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` (optionally `BEDROCK_MODEL`). No code
-  change — provider is chosen at runtime from the environment.
+- **AWS Bedrock** — explicitly set `AI_PROVIDER=bedrock` plus
+  `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` (optionally
+  `BEDROCK_MODEL`). AWS credentials alone do not change the default provider.
 
 Without any key, everything still works via manual entry.
 

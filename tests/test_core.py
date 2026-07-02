@@ -205,6 +205,48 @@ def test_bedrock_ladder_orders_cheap_to_expensive():
     assert ladder[0].startswith("eu.")  # region inference profile preferred for EU
 
 
+def test_server_does_not_default_to_bedrock_when_aws_creds_exist(monkeypatch):
+    import ai_extract
+    import server
+
+    monkeypatch.delenv("AI_PROVIDER", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test-access")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+    monkeypatch.setenv("AWS_REGION", "eu-central-1")
+
+    assert server._ai_provider() == ai_extract.PROVIDER_ANTHROPIC
+    assert server._bedrock_ready() is False
+    assert server._ai_ready() is False
+
+    monkeypatch.setenv("AI_PROVIDER", ai_extract.PROVIDER_BEDROCK)
+
+    assert server._ai_provider() == ai_extract.PROVIDER_BEDROCK
+    assert server._bedrock_ready() is True
+    assert server._ai_ready() is True
+
+
+def test_server_without_any_ai_credentials_is_not_ready(monkeypatch):
+    import ai_extract
+    import server
+
+    for key in (
+        "AI_PROVIDER",
+        "ANTHROPIC_API_KEY",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_REGION",
+        "AWS_DEFAULT_REGION",
+        "AWS_SESSION_TOKEN",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(ai_extract, "_aws_chain_has_credentials", lambda: False)
+
+    assert server._ai_provider() == ai_extract.PROVIDER_ANTHROPIC
+    assert server._bedrock_ready() is False
+    assert server._ai_ready() is False
+
+
 def test_is_complete_requires_expected_artifacts():
     import storage
 
